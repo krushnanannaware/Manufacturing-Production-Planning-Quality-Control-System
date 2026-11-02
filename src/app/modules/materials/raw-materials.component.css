@@ -1,0 +1,11 @@
+:host {
+  display: block;
+}
+
+.low-stock-row {
+  background-color: #fff8f0 !important;
+}
+
+.low-stock-row:hover {
+  background-color: #fff0e0 !important;
+}

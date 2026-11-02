@@ -1,0 +1,282 @@
+<div class="page-header">
+  <div>
+    <h2>Bill of Materials</h2>
+    <p>Define material requirements for each finished product</p>
+  </div>
+  <div class="btn-group">
+    <button class="btn btn-secondary" (click)="openCalculator()">📊 Material Calculator</button>
+    <button class="btn btn-primary" (click)="openCreateModal()">+ Create BOM</button>
+  </div>
+</div>
+
+<!-- BOM Table -->
+<div class="card">
+  <div class="card-header">
+    <h3>All Bill of Materials ({{ boms.length }})</h3>
+  </div>
+
+  <div class="table-container">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th>BOM ID</th>
+          <th>Product Name</th>
+          <th>Product ID</th>
+          <th>No. of Materials</th>
+          <th>Total Cost / Unit</th>
+          <th>Created Date</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (bom of boms; track bom.id) {
+          <tr class="bom-row" (click)="toggleExpand(bom.id)">
+            <td class="expand-icon">{{ expandedBomId === bom.id ? '▼' : '▶' }}</td>
+            <td class="text-muted">{{ bom.id }}</td>
+            <td class="fw-bold">{{ bom.productName }}</td>
+            <td>{{ bom.productId }}</td>
+            <td>{{ bom.materials.length }}</td>
+            <td>₹{{ getBomTotalCost(bom) | number:'1.2-2' }}</td>
+            <td>{{ bom.createdAt | date:'mediumDate' }}</td>
+            <td>
+              <div class="btn-group" (click)="$event.stopPropagation()">
+                <button class="btn btn-sm btn-secondary" (click)="openEditModal(bom)" title="Edit">✏️</button>
+                <button class="btn btn-sm btn-danger" (click)="confirmDelete(bom)" title="Delete">🗑️</button>
+              </div>
+            </td>
+          </tr>
+          @if (expandedBomId === bom.id) {
+            <tr class="expanded-row">
+              <td colspan="8">
+                <div class="bom-detail">
+                  <h4>Materials for {{ bom.productName }}</h4>
+                  <table class="data-table inner-table">
+                    <thead>
+                      <tr>
+                        <th>Material ID</th>
+                        <th>Material Name</th>
+                        <th>Quantity Required</th>
+                        <th>Unit</th>
+                        <th>Unit Cost</th>
+                        <th>Line Cost</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (mat of bom.materials; track mat.materialId) {
+                        <tr>
+                          <td class="text-muted">{{ mat.materialId }}</td>
+                          <td>{{ mat.materialName }}</td>
+                          <td>{{ mat.quantityRequired }}</td>
+                          <td>{{ mat.unit }}</td>
+                          <td>₹{{ getMaterialUnitCost(mat.materialId) | number:'1.2-2' }}</td>
+                          <td class="fw-bold">₹{{ (mat.quantityRequired * getMaterialUnitCost(mat.materialId)) | number:'1.2-2' }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                    <tfoot>
+                      <tr>
+                        <td colspan="5" class="text-right fw-bold">Total Cost per Unit:</td>
+                        <td class="fw-bold">₹{{ getBomTotalCost(bom) | number:'1.2-2' }}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </td>
+            </tr>
+          }
+        }
+        @if (boms.length === 0) {
+          <tr>
+            <td colspan="8">
+              <div class="empty-state">
+                <div class="empty-state-icon">📋</div>
+                <h3>No Bill of Materials found</h3>
+                <p>Create a BOM to define material requirements for your products.</p>
+              </div>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Create/Edit BOM Modal -->
+@if (showModal) {
+  <div class="modal-overlay" (click)="closeModal()">
+    <div class="modal modal-lg" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>{{ isEditing ? 'Edit Bill of Materials' : 'Create Bill of Materials' }}</h3>
+        <button class="modal-close" (click)="closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <form [formGroup]="bomForm">
+          <div class="form-group">
+            <label>Finished Product <span class="required">*</span></label>
+            <select
+              class="form-control"
+              [class.invalid]="isFieldInvalid('productId')"
+              formControlName="productId"
+              (change)="onProductChange()"
+              [attr.disabled]="isEditing ? '' : null"
+            >
+              <option value="">-- Select Product --</option>
+              @for (product of getAvailableProducts(); track product.id) {
+                <option [value]="product.id">{{ product.name }} ({{ product.id }})</option>
+              }
+            </select>
+            @if (isFieldInvalid('productId')) {
+              <div class="form-error">Please select a product.</div>
+            }
+            @if (duplicateProductError) {
+              <div class="form-error">{{ duplicateProductError }}</div>
+            }
+          </div>
+
+          <!-- Add Material Section -->
+          <div class="card add-material-section">
+            <div class="card-header">
+              <h3>Materials</h3>
+            </div>
+            <div class="add-material-row">
+              <select class="form-control material-select" [(ngModel)]="selectedMaterialId" [ngModelOptions]="{standalone: true}">
+                <option value="">-- Select Material --</option>
+                @for (mat of getAvailableMaterials(); track mat.id) {
+                  <option [value]="mat.id">{{ mat.name }} ({{ mat.unit }})</option>
+                }
+              </select>
+              <input class="form-control qty-input" type="number" [(ngModel)]="materialQuantity" [ngModelOptions]="{standalone: true}" min="0.01" step="0.01" placeholder="Qty" />
+              <button type="button" class="btn btn-success btn-sm" (click)="addMaterialToBom()" [disabled]="!selectedMaterialId || materialQuantity <= 0">+ Add</button>
+            </div>
+
+            @if (bomMaterials.length > 0) {
+              <table class="data-table mt-1">
+                <thead>
+                  <tr>
+                    <th>Material</th>
+                    <th>Quantity</th>
+                    <th>Unit</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (mat of bomMaterials; track mat.materialId; let i = $index) {
+                    <tr>
+                      <td>{{ mat.materialName }}</td>
+                      <td>{{ mat.quantityRequired }}</td>
+                      <td>{{ mat.unit }}</td>
+                      <td>
+                        <button type="button" class="btn btn-sm btn-danger" (click)="removeMaterialFromBom(i)">Remove</button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            } @else {
+              <p class="text-muted text-sm mt-1">No materials added yet. Select a material and quantity above.</p>
+            }
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" (click)="saveBom()" [disabled]="bomForm.invalid || bomMaterials.length === 0 || !!duplicateProductError">
+          {{ isEditing ? 'Update BOM' : 'Create BOM' }}
+        </button>
+        <button class="btn btn-secondary" (click)="closeModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Delete Confirmation Modal -->
+@if (showDeleteConfirm) {
+  <div class="modal-overlay" (click)="cancelDelete()">
+    <div class="modal" (click)="$event.stopPropagation()" style="max-width: 420px;">
+      <div class="modal-header">
+        <h3>Confirm Delete</h3>
+        <button class="modal-close" (click)="cancelDelete()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to delete the BOM for <strong>{{ deletingBom?.productName }}</strong>?</p>
+        <p class="text-muted text-sm mt-1">BOMs with active production orders cannot be deleted.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-danger" (click)="deleteBom()">Delete</button>
+        <button class="btn btn-secondary" (click)="cancelDelete()">Cancel</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Material Requirements Calculator Modal -->
+@if (showCalculator) {
+  <div class="modal-overlay" (click)="closeCalculator()">
+    <div class="modal modal-lg" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>📊 Material Requirements Calculator</h3>
+        <button class="modal-close" (click)="closeCalculator()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="calc-inputs">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Select Product</label>
+              <select class="form-control" [(ngModel)]="calcProductId">
+                <option value="">-- Select Product --</option>
+                @for (product of getProductsWithBom(); track product.id) {
+                  <option [value]="product.id">{{ product.name }}</option>
+                }
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Production Quantity</label>
+              <input class="form-control" type="number" [(ngModel)]="calcQuantity" min="1" />
+            </div>
+          </div>
+          <button class="btn btn-primary" (click)="calculateRequirements()" [disabled]="!calcProductId || calcQuantity <= 0">Calculate Requirements</button>
+        </div>
+
+        @if (calcResults.length > 0) {
+          <div class="mt-2">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Material</th>
+                  <th>Required</th>
+                  <th>Available</th>
+                  <th>Reserved</th>
+                  <th>Shortage</th>
+                  <th>Unit</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (req of calcResults; track req.materialId) {
+                  <tr [class.low-stock-row]="req.shortage > 0">
+                    <td class="fw-bold">{{ req.materialName }}</td>
+                    <td>{{ req.required | number }}</td>
+                    <td>{{ req.available | number }}</td>
+                    <td>{{ req.reserved | number }}</td>
+                    <td class="fw-bold" [class.text-danger]="req.shortage > 0">{{ req.shortage | number }}</td>
+                    <td>{{ req.unit }}</td>
+                    <td>
+                      @if (req.shortage > 0) {
+                        <span class="badge badge-critical">⚠ Shortage</span>
+                      } @else {
+                        <span class="badge badge-completed">✓ Sufficient</span>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeCalculator()">Close</button>
+      </div>
+    </div>
+  </div>
+}

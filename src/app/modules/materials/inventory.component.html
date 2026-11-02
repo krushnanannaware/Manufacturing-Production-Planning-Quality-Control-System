@@ -1,0 +1,262 @@
+<div class="page-header">
+  <div>
+    <h2>Inventory Control & Stock Operations</h2>
+    <p>Monitor raw material stock levels, record transactions, and manage reservations</p>
+  </div>
+  <div class="btn-group">
+    <button class="btn btn-success" (click)="openOperationModal('Receipt')">📥 Stock Receipt</button>
+    <button class="btn btn-warning" (click)="openOperationModal('Consumption')">📤 Stock Consumption</button>
+    <button class="btn btn-primary" (click)="openOperationModal('Reservation')">🔒 Reserve Material</button>
+    <button class="btn btn-secondary" (click)="openOperationModal('Adjustment')">⚖️ Adjust Stock</button>
+  </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="kpi-grid">
+  <div class="kpi-card blue">
+    <div class="kpi-value">{{ totalMaterials }}</div>
+    <div class="kpi-label">Material Types</div>
+  </div>
+  <div class="kpi-card" [class.red]="lowStockCount > 0" [class.green]="lowStockCount === 0">
+    <div class="kpi-value">{{ lowStockCount }}</div>
+    <div class="kpi-label">Low Stock Alerts</div>
+  </div>
+  <div class="kpi-card purple">
+    <div class="kpi-value">₹{{ totalStockValue | number:'1.0-0' }}</div>
+    <div class="kpi-label">Total Inventory Value</div>
+  </div>
+  <div class="kpi-card teal">
+    <div class="kpi-value">{{ totalTransactions }}</div>
+    <div class="kpi-label">Total Transactions</div>
+  </div>
+</div>
+
+<!-- Low Stock Alerts Box (if any) -->
+@if (lowStockMaterials.length > 0) {
+  <div class="card alert-card">
+    <div class="card-header">
+      <h3 style="color: #b91c1c;">⚠️ Critical Low Stock Warnings</h3>
+      <span class="badge badge-critical">{{ lowStockMaterials.length }} Items Below Minimum</span>
+    </div>
+    <div class="alert-grid">
+      @for (m of lowStockMaterials; track m.id) {
+        <div class="alert-item">
+          <div>
+            <strong>{{ m.name }}</strong> ({{ m.id }})
+            <div class="text-sm text-muted">Category: {{ m.category }} | Supplier: {{ m.supplierName || '—' }}</div>
+          </div>
+          <div class="text-right">
+            <span class="stock-deficit">Current: {{ m.availableStock }} {{ m.unit }}</span>
+            <div class="text-sm text-muted">Min required: {{ m.minimumStockLevel }} {{ m.unit }}</div>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+}
+
+<!-- Stock Overview Table -->
+<div class="card">
+  <div class="card-header">
+    <h3>Current Stock Levels</h3>
+  </div>
+  <div class="table-container">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Material ID</th>
+          <th>Material Name</th>
+          <th>Category</th>
+          <th>Available Stock</th>
+          <th>Reserved Stock</th>
+          <th>Net Available</th>
+          <th>Min Level</th>
+          <th>Unit Cost</th>
+          <th>Stock Value</th>
+          <th>Stock Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (m of materials; track m.id) {
+          <tr>
+            <td><strong>{{ m.id }}</strong></td>
+            <td>{{ m.name }}</td>
+            <td>{{ m.category }}</td>
+            <td class="fw-bold">{{ m.availableStock }} {{ m.unit }}</td>
+            <td class="text-muted">{{ m.reservedStock }} {{ m.unit }}</td>
+            <td [class.text-danger]="(m.availableStock - m.reservedStock) < 0" class="fw-bold">
+              {{ m.availableStock - m.reservedStock }} {{ m.unit }}
+            </td>
+            <td>{{ m.minimumStockLevel }} {{ m.unit }}</td>
+            <td>₹{{ m.unitCost | number:'1.2-2' }}</td>
+            <td>₹{{ (m.availableStock * m.unitCost) | number:'1.2-2' }}</td>
+            <td>
+              @if (m.availableStock <= m.minimumStockLevel) {
+                <span class="badge badge-critical">Low Stock</span>
+              } @else {
+                <span class="badge badge-completed">Healthy</span>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Transaction History Section -->
+<div class="card">
+  <div class="card-header">
+    <h3>Inventory Transaction History</h3>
+  </div>
+
+  <div class="toolbar">
+    <input
+      type="text"
+      class="search-input"
+      placeholder="Search transactions by note, material, order..."
+      [(ngModel)]="searchTerm"
+      (input)="applyFilters()"
+    />
+    <select class="filter-select" [(ngModel)]="typeFilter" (change)="applyFilters()">
+      <option value="">All Operation Types</option>
+      <option value="Receipt">Receipt</option>
+      <option value="Consumption">Consumption</option>
+      <option value="Reservation">Reservation</option>
+      <option value="Adjustment">Adjustment</option>
+    </select>
+    <select class="filter-select" [(ngModel)]="materialFilter" (change)="applyFilters()">
+      <option value="">All Materials</option>
+      @for (m of materials; track m.id) {
+        <option [value]="m.id">{{ m.name }}</option>
+      }
+    </select>
+  </div>
+
+  @if (pagedTransactions.length > 0) {
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Txn ID</th>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Material</th>
+            <th>Quantity</th>
+            <th>Production Order</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (txn of pagedTransactions; track txn.id) {
+            <tr>
+              <td><strong>{{ txn.id }}</strong></td>
+              <td>{{ txn.date }}</td>
+              <td>
+                <span [class]="getTransactionBadgeClass(txn.transactionType)">{{ txn.transactionType }}</span>
+              </td>
+              <td>{{ txn.materialName }}</td>
+              <td class="fw-bold" [class.text-danger]="txn.quantity < 0" [class.text-success]="txn.quantity > 0">
+                {{ txn.quantity > 0 ? '+' : '' }}{{ txn.quantity }}
+              </td>
+              <td>{{ txn.productionOrderId || '—' }}</td>
+              <td>{{ txn.notes }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination">
+      <span>Showing {{ (currentPage-1)*pageSize + 1 }}–{{ currentPage*pageSize > filteredTransactions.length ? filteredTransactions.length : currentPage*pageSize }} of {{ filteredTransactions.length }}</span>
+      <div class="pagination-buttons">
+        <button class="pagination-btn" [disabled]="currentPage === 1" (click)="goToPage(currentPage - 1)">‹</button>
+        @for (p of getPages(); track p) {
+          <button class="pagination-btn" [class.active]="p === currentPage" (click)="goToPage(p)">{{ p }}</button>
+        }
+        <button class="pagination-btn" [disabled]="currentPage === totalPages" (click)="goToPage(currentPage + 1)">›</button>
+      </div>
+    </div>
+  } @else {
+    <div class="empty-state">
+      <div class="empty-state-icon">📋</div>
+      <h3>No Transactions Recorded</h3>
+      <p>Perform a stock operation above to record transaction entries.</p>
+    </div>
+  }
+</div>
+
+<!-- Stock Operation Modal -->
+@if (showOperationModal) {
+  <div class="modal-overlay" (click)="closeOperationModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Record {{ operationType }}</h3>
+        <button class="modal-close" (click)="closeOperationModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <form [formGroup]="operationForm" (ngSubmit)="executeOperation()">
+          <div class="form-group">
+            <label>Raw Material <span class="required">*</span></label>
+            <select formControlName="materialId" class="form-control" [class.invalid]="isFieldInvalid('materialId')">
+              <option value="">Select raw material...</option>
+              @for (m of materials; track m.id) {
+                <option [value]="m.id">{{ m.name }} (Current: {{ m.availableStock }} {{ m.unit }})</option>
+              }
+            </select>
+            @if (isFieldInvalid('materialId')) {
+              <div class="form-error">Please select a material.</div>
+            }
+          </div>
+
+          @if (getSelectedMaterial(); as selMat) {
+            <div class="card" style="background:#f9fafb; padding:10px 14px; margin-bottom:14px; font-size:12px;">
+              <div>Available Stock: <strong>{{ selMat.availableStock }} {{ selMat.unit }}</strong></div>
+              <div>Reserved: <strong>{{ selMat.reservedStock }} {{ selMat.unit }}</strong> | Minimum Level: <strong>{{ selMat.minimumStockLevel }} {{ selMat.unit }}</strong></div>
+            </div>
+          }
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>
+                Quantity
+                @if (getSelectedMaterial(); as selMat) {
+                  ({{ selMat.unit }})
+                }
+                <span class="required">*</span>
+              </label>
+              <input type="number" formControlName="quantity" class="form-control" step="any" [class.invalid]="isFieldInvalid('quantity')" />
+              @if (isFieldInvalid('quantity')) {
+                <div class="form-error">Valid quantity required.</div>
+              }
+            </div>
+
+            <div class="form-group">
+              <label>Linked Production Order (Optional)</label>
+              <select formControlName="productionOrderId" class="form-control">
+                <option value="">None</option>
+                @for (o of productionOrders; track o.id) {
+                  <option [value]="o.id">{{ o.id }} - {{ o.productName }}</option>
+                }
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Reason / Notes <span class="required">*</span></label>
+            <textarea formControlName="notes" class="form-control" rows="3" placeholder="e.g. PO Receipt invoice #4512 or production usage..."></textarea>
+            @if (isFieldInvalid('notes')) {
+              <div class="form-error">Notes/reason are required for audit trail.</div>
+            }
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Submit {{ operationType }}</button>
+            <button type="button" class="btn btn-secondary" (click)="closeOperationModal()">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+}

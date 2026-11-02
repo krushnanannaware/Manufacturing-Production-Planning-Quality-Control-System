@@ -1,0 +1,7 @@
+:host {
+  display: block;
+}
+
+.overdue-row {
+  background-color: #fff1f2 !important;
+}

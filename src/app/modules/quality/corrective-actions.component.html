@@ -1,0 +1,276 @@
+<div class="page-header">
+  <div>
+    <h2>Corrective & Preventive Actions (CAPA)</h2>
+    <p>Manage remediation workflows for defects, assign responsibility, track target deadlines and verification</p>
+  </div>
+  <button class="btn btn-primary" (click)="openCreateModal()">+ New Corrective Action</button>
+</div>
+
+<!-- KPI Cards -->
+<div class="kpi-grid">
+  <div class="kpi-card blue">
+    <div class="kpi-value">{{ totalActions }}</div>
+    <div class="kpi-label">Total Actions</div>
+  </div>
+  <div class="kpi-card orange">
+    <div class="kpi-value">{{ pendingCount }}</div>
+    <div class="kpi-label">Pending Initiation</div>
+  </div>
+  <div class="kpi-card teal">
+    <div class="kpi-value">{{ inProgressCount }}</div>
+    <div class="kpi-label">In Progress</div>
+  </div>
+  <div class="kpi-card green">
+    <div class="kpi-value">{{ completedCount }}</div>
+    <div class="kpi-label">Completed / Verified</div>
+  </div>
+  <div class="kpi-card" [class.red]="overdueCount > 0" [class.green]="overdueCount === 0">
+    <div class="kpi-value">{{ overdueCount }}</div>
+    <div class="kpi-label">Overdue Deadlines</div>
+  </div>
+</div>
+
+<!-- Toolbar -->
+<div class="toolbar">
+  <input
+    type="text"
+    class="search-input"
+    placeholder="Search by ID, defect, description, or assigned person..."
+    [(ngModel)]="searchTerm"
+    (input)="applyFilters()"
+  />
+  <select class="filter-select" [(ngModel)]="statusFilter" (change)="applyFilters()">
+    <option value="">All Statuses</option>
+    @for (st of statuses; track st) {
+      <option [value]="st">{{ st }}</option>
+    }
+  </select>
+</div>
+
+<!-- Actions Table -->
+<div class="card">
+  @if (filteredActions.length > 0) {
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Action ID</th>
+            <th>Linked Defect</th>
+            <th>Description</th>
+            <th>Assigned Person</th>
+            <th>Target Date</th>
+            <th>Status</th>
+            <th>Completed Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (a of filteredActions; track a.id) {
+            <tr [class.overdue-row]="isOverdue(a)">
+              <td><strong>{{ a.id }}</strong></td>
+              <td>{{ getDefectDisplay(a.defectId) }}</td>
+              <td>{{ a.description }}</td>
+              <td>{{ a.assignedTo }}</td>
+              <td>
+                <span [class.text-danger]="isOverdue(a)" [class.fw-bold]="isOverdue(a)">
+                  {{ a.targetDate }}
+                  @if (isOverdue(a)) {
+                    <span class="badge badge-critical" style="font-size:9px; margin-left:4px;">OVERDUE</span>
+                  }
+                </span>
+              </td>
+              <td>
+                <span [class]="getStatusBadgeClass(a.status)">{{ a.status }}</span>
+              </td>
+              <td>{{ a.completedDate || '—' }}</td>
+              <td>
+                <div class="btn-group">
+                  <button class="btn btn-sm btn-secondary" (click)="openViewModal(a)">View</button>
+                  <button class="btn btn-sm btn-secondary" (click)="openEditModal(a)">Edit</button>
+                  <button class="btn btn-sm btn-danger" (click)="confirmDelete(a)">Delete</button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else {
+    <div class="empty-state">
+      <div class="empty-state-icon">🔧</div>
+      <h3>No Corrective Actions Found</h3>
+      <p>Initiate a corrective action to remediate defects and prevent reoccurrence.</p>
+      <button class="btn btn-primary" (click)="openCreateModal()">+ New Corrective Action</button>
+    </div>
+  }
+</div>
+
+<!-- Create / Edit Modal -->
+@if (showModal) {
+  <div class="modal-overlay" (click)="closeModal()">
+    <div class="modal modal-lg" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>{{ isEditing ? 'Edit Corrective Action' : 'Initiate Corrective Action' }}</h3>
+        <button class="modal-close" (click)="closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <form [formGroup]="actionForm" (ngSubmit)="saveAction()">
+          <div class="form-group">
+            <label>Linked Defect <span class="required">*</span></label>
+            <select formControlName="defectId" class="form-control" [class.invalid]="isFieldInvalid('defectId')">
+              <option value="">Select defect to remediate...</option>
+              @for (d of defects; track d.id) {
+                <option [value]="d.id">{{ d.id }} - {{ d.productName }} ({{ d.defectType }}, {{ d.severity }})</option>
+              }
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Action Description <span class="required">*</span></label>
+            <textarea formControlName="description" class="form-control" rows="3" placeholder="Outline specific remediation steps, calibration or re-training..." [class.invalid]="isFieldInvalid('description')"></textarea>
+            @if (isFieldInvalid('description')) {
+              <div class="form-error">Detailed description of the action is required.</div>
+            }
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Assigned To <span class="required">*</span></label>
+              <input type="text" formControlName="assignedTo" class="form-control" placeholder="Engineer or technician name" [class.invalid]="isFieldInvalid('assignedTo')" />
+              @if (isFieldInvalid('assignedTo')) {
+                <div class="form-error">Assignee is required.</div>
+              }
+            </div>
+
+            <div class="form-group">
+              <label>Target Completion Date <span class="required">*</span></label>
+              <input type="date" formControlName="targetDate" class="form-control" [class.invalid]="isFieldInvalid('targetDate')" />
+              @if (isFieldInvalid('targetDate')) {
+                <div class="form-error">Target date is required.</div>
+              }
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Status <span class="required">*</span></label>
+              <select formControlName="status" class="form-control">
+                @for (st of statuses; track st) {
+                  <option [value]="st">{{ st }}</option>
+                }
+              </select>
+            </div>
+
+            @if (actionForm.get('status')?.value === 'Completed' || actionForm.get('status')?.value === 'Verified' || actionForm.get('status')?.value === 'Closed') {
+              <div class="form-group">
+                <label>Completed Date <span class="required">*</span></label>
+                <input type="date" formControlName="completedDate" class="form-control" />
+              </div>
+            }
+          </div>
+
+          @if (actionForm.get('status')?.value === 'Completed' || actionForm.get('status')?.value === 'Verified' || actionForm.get('status')?.value === 'Closed') {
+            <div class="form-group">
+              <label>Resolution Details & Evidence <span class="required">*</span></label>
+              <textarea formControlName="resolutionDetails" class="form-control" rows="3" placeholder="Describe how the action was implemented and verified..." [class.invalid]="isFieldInvalid('resolutionDetails')"></textarea>
+              @if (isFieldInvalid('resolutionDetails')) {
+                <div class="form-error">Resolution details are required for completion.</div>
+              }
+            </div>
+          }
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{{ isEditing ? 'Update Action' : 'Save Action' }}</button>
+            <button type="button" class="btn btn-secondary" (click)="closeModal()">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- View Details Modal with Traceability -->
+@if (showViewModal && selectedAction) {
+  <div class="modal-overlay" (click)="closeViewModal()">
+    <div class="modal modal-lg" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Corrective Action Traceability: {{ selectedAction.id }}</h3>
+        <button class="modal-close" (click)="closeViewModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="grid-2 mb-2">
+          <div>
+            <p><strong>Action ID:</strong> {{ selectedAction.id }}</p>
+            <p><strong>Assigned Engineer:</strong> {{ selectedAction.assignedTo }}</p>
+            <p><strong>Status:</strong> <span [class]="getStatusBadgeClass(selectedAction.status)">{{ selectedAction.status }}</span></p>
+          </div>
+          <div>
+            <p>
+              <strong>Target Date:</strong>
+              <span [class.text-danger]="isOverdue(selectedAction)">{{ selectedAction.targetDate }}</span>
+              @if (isOverdue(selectedAction)) {
+                <span class="badge badge-critical" style="margin-left: 6px;">OVERDUE</span>
+              }
+            </p>
+            <p><strong>Completed Date:</strong> {{ selectedAction.completedDate || 'Pending completion' }}</p>
+          </div>
+        </div>
+
+        <div class="card" style="background:#f9fafb;">
+          <strong>Action Plan / Description:</strong>
+          <p style="margin-top: 6px;">{{ selectedAction.description }}</p>
+        </div>
+
+        @if (selectedAction.resolutionDetails) {
+          <div class="card" style="background:#f0fdf4; border-left:4px solid #22c55e;">
+            <strong>Remediation & Verification Outcome:</strong>
+            <p style="margin-top: 6px;">{{ selectedAction.resolutionDetails }}</p>
+          </div>
+        }
+
+        @if (linkedDefect) {
+          <h4 style="margin-top: 16px;">Linked Defect Information</h4>
+          <div class="card" style="background: #fffafa; border-left: 4px solid #f87171; margin-top: 8px;">
+            <div class="grid-2">
+              <div>
+                <p><strong>Defect ID:</strong> {{ linkedDefect.id }}</p>
+                <p><strong>Product:</strong> {{ linkedDefect.productName }}</p>
+                <p><strong>Type:</strong> {{ linkedDefect.defectType }}</p>
+              </div>
+              <div>
+                <p><strong>Severity:</strong> <span [class]="'badge badge-' + linkedDefect.severity.toLowerCase()">{{ linkedDefect.severity }}</span></p>
+                <p><strong>Affected Qty:</strong> {{ linkedDefect.affectedQuantity }}</p>
+                <p><strong>Order ID:</strong> {{ linkedDefect.productionOrderId }}</p>
+              </div>
+            </div>
+            <div class="mt-1">
+              <strong>Defect Note:</strong> {{ linkedDefect.description }}
+            </div>
+          </div>
+        }
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeViewModal()">Close</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Delete Confirmation -->
+@if (showDeleteConfirm && deletingAction) {
+  <div class="modal-overlay" (click)="cancelDelete()">
+    <div class="modal" (click)="$event.stopPropagation()" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3>Confirm Action Deletion</h3>
+        <button class="modal-close" (click)="cancelDelete()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to delete corrective action <strong>{{ deletingAction.id }}</strong>?</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-danger" (click)="deleteAction()">Delete</button>
+        <button class="btn btn-secondary" (click)="cancelDelete()">Cancel</button>
+      </div>
+    </div>
+  </div>
+}

@@ -1,0 +1,159 @@
+<div class="page-header">
+  <div>
+    <h2>Yield Analytics & Production Performance</h2>
+    <p>Comprehensive yield calculations, scrap rates, planned vs actual output, and equipment efficacy</p>
+  </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="kpi-grid">
+  <div class="kpi-card green">
+    <div class="kpi-value">{{ overallYieldPercent }}%</div>
+    <div class="kpi-label">Overall Factory Yield</div>
+  </div>
+  <div class="kpi-card red">
+    <div class="kpi-value">{{ overallRejectionPercent }}%</div>
+    <div class="kpi-label">Overall Scrap / Reject %</div>
+  </div>
+  <div class="kpi-card blue">
+    <div class="kpi-value">{{ totalProduced | number }}</div>
+    <div class="kpi-label">Total Units Produced</div>
+  </div>
+  <div class="kpi-card teal">
+    <div class="kpi-value">{{ totalAccepted | number }}</div>
+    <div class="kpi-label">Units Passed QC</div>
+  </div>
+  <div class="kpi-card orange">
+    <div class="kpi-value">{{ totalRejected | number }}</div>
+    <div class="kpi-label">Units Rejected</div>
+  </div>
+</div>
+
+<!-- Visual Charts Section -->
+<div class="grid-2 mb-2">
+  <!-- Planned vs Actual Production Bar Chart -->
+  <div class="card">
+    <div class="card-header">
+      <h3>Planned vs Actual Output Comparison</h3>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-color blue"></span> Planned</span>
+        <span class="legend-item"><span class="legend-color green"></span> Produced</span>
+      </div>
+    </div>
+    <div class="comparison-chart">
+      @for (item of comparisonData; track item.label) {
+        <div class="grouped-bar-item">
+          <div class="bars-container">
+            <div class="bar-col">
+              <span class="bar-val">{{ item.planned }}</span>
+              <div class="bar-fill blue" [style.height.px]="item.plannedHeight"></div>
+            </div>
+            <div class="bar-col">
+              <span class="bar-val">{{ item.actual }}</span>
+              <div class="bar-fill green" [style.height.px]="item.actualHeight"></div>
+            </div>
+          </div>
+          <span class="bar-label">{{ item.label }}</span>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Work Centre Yield Performance -->
+  <div class="card">
+    <div class="card-header">
+      <h3>Yield Performance by Work Centre</h3>
+    </div>
+    <div class="wc-yield-list">
+      @for (wc of workCentreYields; track wc.id) {
+        <div class="wc-yield-item">
+          <div class="wc-yield-header">
+            <strong>{{ wc.name }}</strong>
+            <span class="fw-bold" [class]="'text-' + getYieldColor(wc.yieldPercent)">{{ wc.yieldPercent }}% Yield</span>
+          </div>
+          <div class="progress-bar">
+            <div
+              class="progress-bar-fill"
+              [class]="getYieldColor(wc.yieldPercent)"
+              [style.width.%]="wc.yieldPercent"
+            ></div>
+          </div>
+          <div class="wc-yield-stats text-sm text-muted">
+            <span>Produced: {{ wc.totalProduced }}</span>
+            <span>Accepted: {{ wc.totalAccepted }}</span>
+            <span>Scrap: {{ wc.totalRejected }} ({{ wc.rejectionPercent }}%)</span>
+          </div>
+        </div>
+      }
+      @if (workCentreYields.length === 0) {
+        <p class="text-muted text-center py-2">No work centre production recorded yet.</p>
+      }
+    </div>
+  </div>
+</div>
+
+<!-- Order-Level Detailed Yield Table -->
+<div class="card">
+  <div class="card-header">
+    <h3>Production Order Yield & Defect Rates</h3>
+    <span class="text-muted text-sm">Sorted by lowest yield first to pinpoint quality bottlenecks</span>
+  </div>
+
+  <div class="table-container">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Order ID</th>
+          <th>Product Name</th>
+          <th>Target Quantity</th>
+          <th>Total Produced</th>
+          <th>Accepted Qty</th>
+          <th>Rejected Qty</th>
+          <th>Yield %</th>
+          <th>Scrap Rate</th>
+          <th>Fulfillment %</th>
+          <th>Quality Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of orderPerformance; track item.order.id) {
+          <tr [class.low-yield-row]="item.isLowYield">
+            <td><strong>{{ item.order.id }}</strong></td>
+            <td>{{ item.order.productName }}</td>
+            <td>{{ item.order.quantity }}</td>
+            <td class="fw-bold">{{ item.order.producedQuantity }}</td>
+            <td class="text-success fw-bold">{{ item.order.acceptedQuantity }}</td>
+            <td class="text-danger fw-bold">{{ item.order.rejectedQuantity }}</td>
+            <td>
+              <span class="badge" [class.badge-pass]="item.yieldPercent >= 90" [class.badge-fail]="item.yieldPercent < 90">
+                {{ item.yieldPercent }}%
+              </span>
+            </td>
+            <td class="text-muted">{{ item.rejectionPercent }}%</td>
+            <td style="min-width:110px;">
+              <div class="progress-bar">
+                <div class="progress-bar-fill blue" [style.width.%]="item.completionPercent"></div>
+              </div>
+              <span class="text-sm text-muted">{{ item.completionPercent }}%</span>
+            </td>
+            <td>
+              @if (item.isLowYield) {
+                <span class="badge badge-critical">Below Target</span>
+              } @else if (item.yieldPercent >= 95) {
+                <span class="badge badge-completed">Optimal</span>
+              } @else {
+                <span class="badge badge-medium">Acceptable</span>
+              }
+            </td>
+          </tr>
+        }
+        @if (orderPerformance.length === 0) {
+          <tr>
+            <td colspan="10" class="text-center py-3 text-muted">No active or completed production orders available for analytics.</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</div>
+

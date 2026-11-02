@@ -1,0 +1,207 @@
+<div class="page-header">
+  <div>
+    <h2>Manufacturing Production & Quality Dashboard</h2>
+    <p>Integrated real-time overview of production, inventory, quality control and machine performance</p>
+  </div>
+  <div class="header-actions">
+    <a routerLink="/production/orders/create" class="btn btn-primary">+ Create Production Order</a>
+  </div>
+</div>
+
+<!-- Active Downtime Alert (if any machines down) -->
+@if (activeDowntimes.length > 0) {
+  <div class="card active-downtime-banner">
+    <div class="card-header" style="border:none; margin:0; padding:0 0 8px;">
+      <h3 style="color:#b91c1c;">🚨 Active Work Centre Downtime in Progress</h3>
+      <a routerLink="/analytics/downtime" class="btn btn-danger btn-sm">Manage Downtime</a>
+    </div>
+    @for (dt of activeDowntimes; track dt.id) {
+      <div class="downtime-pill">
+        <strong>{{ dt.workCentreName }}</strong>: {{ dt.reason }} (Started at {{ dt.startTime | date:'shortTime' }})
+      </div>
+    }
+  </div>
+}
+
+<!-- Central KPI Grid (Integrated Modules) -->
+<div class="kpi-grid">
+  <!-- Module 1: Production Orders & Work Centres -->
+  <div class="kpi-card blue">
+    <div class="kpi-value">{{ stats.totalOrders }}</div>
+    <div class="kpi-label">Total Production Orders</div>
+  </div>
+  <div class="kpi-card orange">
+    <div class="kpi-value">{{ stats.inProgressOrders }}</div>
+    <div class="kpi-label">Orders In Progress</div>
+  </div>
+  <div class="kpi-card green">
+    <div class="kpi-value">{{ stats.completedOrders }}</div>
+    <div class="kpi-label">Completed Orders</div>
+  </div>
+  <div class="kpi-card" [class.red]="stats.delayedOrders > 0" [class.green]="stats.delayedOrders === 0">
+    <div class="kpi-value">{{ stats.delayedOrders }}</div>
+    <div class="kpi-label">Delayed Orders</div>
+  </div>
+  <div class="kpi-card purple">
+    <div class="kpi-value">{{ stats.activeWorkCentres }} / {{ stats.totalWorkCentres }}</div>
+    <div class="kpi-label">Active Work Centres</div>
+  </div>
+
+  <!-- Module 2: Materials & Inventory -->
+  <div class="kpi-card teal">
+    <div class="kpi-value">{{ stats.totalMaterials }}</div>
+    <div class="kpi-label">Total Raw Materials</div>
+  </div>
+  <div class="kpi-card" [class.red]="stats.lowStockMaterials > 0" [class.green]="stats.lowStockMaterials === 0">
+    <div class="kpi-value">{{ stats.lowStockMaterials }}</div>
+    <div class="kpi-label">Low Stock Alerts</div>
+  </div>
+
+  <!-- Module 3: Quality Control & Defects -->
+  <div class="kpi-card teal">
+    <div class="kpi-value">{{ stats.totalInspections }}</div>
+    <div class="kpi-label">Quality Inspections</div>
+  </div>
+  <div class="kpi-card" [class.red]="stats.openDefects > 0" [class.green]="stats.openDefects === 0">
+    <div class="kpi-value">{{ stats.openDefects }}</div>
+    <div class="kpi-label">Open Defects</div>
+  </div>
+  <div class="kpi-card orange">
+    <div class="kpi-value">{{ stats.pendingCorrectiveActions }}</div>
+    <div class="kpi-label">Pending CAPA Actions</div>
+  </div>
+
+  <!-- Module 4: Yield & Downtime -->
+  <div class="kpi-card green">
+    <div class="kpi-value">{{ stats.productionYield }}%</div>
+    <div class="kpi-label">Production Yield</div>
+  </div>
+  <div class="kpi-card purple">
+    <div class="kpi-value">{{ stats.totalDowntimeMinutes }}m</div>
+    <div class="kpi-label">Total Downtime</div>
+  </div>
+</div>
+
+<!-- Charts & Visual Breakdown Grid -->
+<div class="grid-2 mb-2">
+  <!-- Production Order Status Breakdown -->
+  <div class="card">
+    <div class="card-header">
+      <h3>Production Orders Distribution</h3>
+      <a routerLink="/production/orders" class="text-sm">View All Orders →</a>
+    </div>
+    <div class="bar-chart-container">
+      <div class="bar-chart">
+        @for (item of orderStatusCounts; track item.label) {
+          <div class="bar-chart-item">
+            <span class="bar-value">{{ item.count }}</span>
+            <div
+              class="bar"
+              [class]="item.colorClass"
+              [style.height.px]="item.count > 0 ? (item.count * 24 + 10) : 4"
+            ></div>
+            <span class="bar-label">{{ item.label }}</span>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- Critical Low Stock Alerts -->
+  <div class="card">
+    <div class="card-header">
+      <h3>Inventory Alerts & Restock Needs</h3>
+      <a routerLink="/materials/inventory" class="text-sm">Inventory Control →</a>
+    </div>
+    @if (lowStockItems.length > 0) {
+      <div class="stock-alert-list">
+        @for (item of lowStockItems; track item.id) {
+          <div class="stock-alert-item">
+            <div>
+              <strong>{{ item.name }}</strong> ({{ item.category }})
+              <div class="text-sm text-muted">Supplier: {{ item.supplierName || '—' }}</div>
+            </div>
+            <div class="text-right">
+              <span class="badge badge-critical">Only {{ item.availableStock }} {{ item.unit }}</span>
+              <div class="text-sm text-muted">Min: {{ item.minimumStockLevel }} {{ item.unit }}</div>
+            </div>
+          </div>
+        }
+      </div>
+    } @else {
+      <div class="empty-state" style="padding:24px 0;">
+        <div class="empty-state-icon">✅</div>
+        <h3>All Stock Levels Healthy</h3>
+        <p>No raw materials are currently below their minimum safety thresholds.</p>
+      </div>
+    }
+  </div>
+</div>
+
+<!-- Recent Orders & Recent Quality Checkpoints -->
+<div class="grid-2">
+  <!-- Recent Production Orders -->
+  <div class="card">
+    <div class="card-header">
+      <h3>Recent Production Orders</h3>
+      <a routerLink="/production/orders" class="text-sm">Manage Orders →</a>
+    </div>
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Order ID</th>
+            <th>Product</th>
+            <th>Status</th>
+            <th>Progress</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (order of recentOrders; track order.id) {
+            <tr>
+              <td><strong>{{ order.id }}</strong></td>
+              <td>{{ order.productName }}</td>
+              <td><span [class]="getOrderBadge(order.status)">{{ order.status }}</span></td>
+              <td style="min-width:100px;">
+                <div class="progress-bar">
+                  <div class="progress-bar-fill blue" [style.width.%]="getProgress(order)"></div>
+                </div>
+                <span class="text-sm text-muted">{{ getProgress(order) }}%</span>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Recent Inspections -->
+  <div class="card">
+    <div class="card-header">
+      <h3>Latest Quality Inspections</h3>
+      <a routerLink="/quality/inspections" class="text-sm">Quality Lab →</a>
+    </div>
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Inspection</th>
+            <th>Product</th>
+            <th>Date</th>
+            <th>Result</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (insp of recentInspections; track insp.id) {
+            <tr>
+              <td><strong>{{ insp.id }}</strong></td>
+              <td>{{ insp.productName }}</td>
+              <td>{{ insp.inspectionDate }}</td>
+              <td><span [class]="getInspectionBadge(insp.overallResult)">{{ insp.overallResult }}</span></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

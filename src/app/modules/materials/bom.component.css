@@ -1,0 +1,75 @@
+:host {
+  display: block;
+}
+
+.bom-row {
+  cursor: pointer;
+}
+
+.bom-row:hover {
+  background-color: #f0f4ff !important;
+}
+
+.expand-icon {
+  width: 30px;
+  text-align: center;
+  font-size: 11px;
+  color: #6b7080;
+}
+
+.expanded-row td {
+  background: #f7f8fa;
+  padding: 0 !important;
+}
+
+.bom-detail {
+  padding: 16px 20px;
+}
+
+.bom-detail h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #333;
+}
+
+.inner-table {
+  background: #fff;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.inner-table tfoot td {
+  padding: 10px 12px;
+  background: #f7f8fa;
+  border-top: 2px solid #e2e5ec;
+}
+
+.add-material-section {
+  margin-top: 8px;
+  padding: 16px;
+}
+
+.add-material-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.material-select {
+  flex: 2;
+}
+
+.qty-input {
+  flex: 0.7;
+  min-width: 90px;
+}
+
+.calc-inputs {
+  padding-bottom: 16px;
+  border-bottom: 1px solid #eef0f4;
+}
+
+.low-stock-row {
+  background-color: #fff8f0 !important;
+}

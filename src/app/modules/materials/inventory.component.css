@@ -1,0 +1,30 @@
+:host {
+  display: block;
+}
+
+.alert-card {
+  border-left: 4px solid #dc3545;
+  background: #fffafa;
+}
+
+.alert-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.alert-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #ffffff;
+  padding: 10px 14px;
+  border-radius: 6px;
+  border: 1px solid #fee2e2;
+}
+
+.stock-deficit {
+  color: #dc3545;
+  font-weight: 700;
+  font-size: 13px;
+}

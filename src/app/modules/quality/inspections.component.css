@@ -1,0 +1,45 @@
+:host {
+  display: block;
+}
+
+.checkpoint-summary {
+  font-family: monospace;
+  font-size: 12px;
+  background: #f1f3f7;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.checkpoints-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 18px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #eef0f4;
+}
+
+.checkpoints-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.checkpoint-item {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.checkpoint-item .form-row {
+  margin-bottom: 8px;
+}
+
+.checkpoint-item .form-group {
+  margin-bottom: 0;
+}

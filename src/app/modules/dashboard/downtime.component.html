@@ -1,0 +1,243 @@
+<div class="page-header">
+  <div>
+    <h2>Work Centre Downtime Monitoring</h2>
+    <p>Track machine outages, classify breakdown root causes, and evaluate equipment availability</p>
+  </div>
+  <button class="btn btn-primary" (click)="openCreateModal()">+ Log Downtime Event</button>
+</div>
+
+<!-- KPI Cards -->
+<div class="kpi-grid">
+  <div class="kpi-card purple">
+    <div class="kpi-value">{{ totalEvents }}</div>
+    <div class="kpi-label">Total Outages</div>
+  </div>
+  <div class="kpi-card" [class.red]="activeDowntimeCount > 0" [class.green]="activeDowntimeCount === 0">
+    <div class="kpi-value">{{ activeDowntimeCount }}</div>
+    <div class="kpi-label">Active Downtimes</div>
+  </div>
+  <div class="kpi-card orange">
+    <div class="kpi-value">{{ totalDowntimeMinutes }} m</div>
+    <div class="kpi-label">Total Lost Minutes</div>
+  </div>
+  <div class="kpi-card blue">
+    <div class="kpi-value">{{ avgDurationMinutes }} m</div>
+    <div class="kpi-label">Average Outage Duration</div>
+  </div>
+</div>
+
+<!-- Outage Breakdown Charts -->
+<div class="grid-2 mb-2">
+  <div class="card">
+    <div class="card-header">
+      <h3>Downtime by Work Centre</h3>
+    </div>
+    <div class="breakdown-list">
+      @for (wc of wcDowntimes; track wc.name) {
+        <div class="breakdown-row">
+          <div class="breakdown-label">
+            <strong>{{ wc.name }}</strong>
+            <span class="text-muted text-sm">{{ wc.minutes }} mins ({{ wc.count }} events)</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-bar-fill red" [style.width.%]="wc.percentage"></div>
+          </div>
+        </div>
+      }
+      @if (wcDowntimes.length === 0) {
+        <p class="text-muted text-center py-2">No downtime recorded.</p>
+      }
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h3>Downtime by Root Cause Category</h3>
+    </div>
+    <div class="breakdown-list">
+      @for (cat of categoryDowntimes; track cat.category) {
+        <div class="breakdown-row">
+          <div class="breakdown-label">
+            <span>{{ cat.category }}</span>
+            <span class="text-muted text-sm">{{ cat.minutes }} mins ({{ cat.count }} events)</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-bar-fill orange" [style.width.%]="cat.percentage"></div>
+          </div>
+        </div>
+      }
+      @if (categoryDowntimes.length === 0) {
+        <p class="text-muted text-center py-2">No category records.</p>
+      }
+    </div>
+  </div>
+</div>
+
+<!-- Toolbar -->
+<div class="toolbar">
+  <input
+    type="text"
+    class="search-input"
+    placeholder="Search downtime by work centre, reason or notes..."
+    [(ngModel)]="searchTerm"
+    (input)="applyFilters()"
+  />
+  <select class="filter-select" [(ngModel)]="categoryFilter" (change)="applyFilters()">
+    <option value="">All Categories</option>
+    @for (c of categories; track c) {
+      <option [value]="c">{{ c }}</option>
+    }
+  </select>
+  <select class="filter-select" [(ngModel)]="workCentreFilter" (change)="applyFilters()">
+    <option value="">All Work Centres</option>
+    @for (w of workCentres; track w.id) {
+      <option [value]="w.id">{{ w.name }}</option>
+    }
+  </select>
+</div>
+
+<!-- Table Card -->
+<div class="card">
+  @if (filteredEvents.length > 0) {
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Event ID</th>
+            <th>Work Centre</th>
+            <th>Reason</th>
+            <th>Category</th>
+            <th>Start Time</th>
+            <th>End Time</th>
+            <th>Duration</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (ev of filteredEvents; track ev.id) {
+            <tr [class.active-row]="!ev.endTime">
+              <td><strong>{{ ev.id }}</strong></td>
+              <td class="fw-bold">{{ ev.workCentreName }}</td>
+              <td>{{ ev.reason }}</td>
+              <td><span class="badge badge-medium">{{ ev.category }}</span></td>
+              <td>{{ ev.startTime | date:'short' }}</td>
+              <td>
+                @if (ev.endTime) {
+                  {{ ev.endTime | date:'short' }}
+                } @else {
+                  <span class="badge badge-critical">Active Now</span>
+                }
+              </td>
+              <td class="fw-bold">
+                @if (ev.durationMinutes) {
+                  {{ ev.durationMinutes }} mins
+                } @else {
+                  <span class="text-danger">Ongoing</span>
+                }
+              </td>
+              <td>
+                <div class="btn-group">
+                  @if (!ev.endTime) {
+                    <button class="btn btn-sm btn-success" (click)="endDowntimeNow(ev)" title="Mark machine back online">End Outage</button>
+                  }
+                  <button class="btn btn-sm btn-secondary" (click)="openEditModal(ev)">Edit</button>
+                  <button class="btn btn-sm btn-danger" (click)="confirmDelete(ev)">Delete</button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else {
+    <div class="empty-state">
+      <div class="empty-state-icon">⏱️</div>
+      <h3>No Downtime Events Recorded</h3>
+      <p>Log a downtime event whenever a machine halts production.</p>
+      <button class="btn btn-primary" (click)="openCreateModal()">+ Log Downtime Event</button>
+    </div>
+  }
+</div>
+
+<!-- Create / Edit Modal -->
+@if (showModal) {
+  <div class="modal-overlay" (click)="closeModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>{{ isEditing ? 'Edit Downtime Event' : 'Log Machine Outage' }}</h3>
+        <button class="modal-close" (click)="closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <form [formGroup]="downtimeForm" (ngSubmit)="saveDowntime()">
+          <div class="form-group">
+            <label>Work Centre / Machine <span class="required">*</span></label>
+            <select formControlName="workCentreId" class="form-control" [class.invalid]="isFieldInvalid('workCentreId')">
+              <option value="">Select work centre...</option>
+              @for (wc of workCentres; track wc.id) {
+                <option [value]="wc.id">{{ wc.name }} ({{ wc.location }})</option>
+              }
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Outage Reason <span class="required">*</span></label>
+            <input type="text" formControlName="reason" class="form-control" placeholder="e.g. Motor overheating, tool broken, power surge" [class.invalid]="isFieldInvalid('reason')" />
+            @if (isFieldInvalid('reason')) {
+              <div class="form-error">Reason is required.</div>
+            }
+          </div>
+
+          <div class="form-group">
+            <label>Category <span class="required">*</span></label>
+            <select formControlName="category" class="form-control">
+              @for (c of categories; track c) {
+                <option [value]="c">{{ c }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Start Time <span class="required">*</span></label>
+              <input type="datetime-local" formControlName="startTime" class="form-control" [class.invalid]="isFieldInvalid('startTime')" />
+            </div>
+
+            <div class="form-group">
+              <label>End Time (Optional if ongoing)</label>
+              <input type="datetime-local" formControlName="endTime" class="form-control" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Technician Notes</label>
+            <textarea formControlName="notes" class="form-control" rows="3" placeholder="Action taken or parts ordered..."></textarea>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{{ isEditing ? 'Update Event' : 'Save Event' }}</button>
+            <button type="button" class="btn btn-secondary" (click)="closeModal()">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Delete Confirmation -->
+@if (showDeleteConfirm && deletingEvent) {
+  <div class="modal-overlay" (click)="cancelDelete()">
+    <div class="modal" (click)="$event.stopPropagation()" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3>Confirm Deletion</h3>
+        <button class="modal-close" (click)="cancelDelete()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p>Delete downtime event <strong>{{ deletingEvent.id }}</strong> for <strong>{{ deletingEvent.workCentreName }}</strong>?</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-danger" (click)="deleteEvent()">Delete</button>
+        <button class="btn btn-secondary" (click)="cancelDelete()">Cancel</button>
+      </div>
+    </div>
+  </div>
+}

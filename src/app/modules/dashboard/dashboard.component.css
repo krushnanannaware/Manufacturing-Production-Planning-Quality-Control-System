@@ -1,0 +1,38 @@
+:host {
+  display: block;
+}
+
+.active-downtime-banner {
+  background: #fef2f2;
+  border-left: 5px solid #dc3545;
+  padding: 16px 20px;
+}
+
+.downtime-pill {
+  background: #ffffff;
+  border: 1px solid #fecaca;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-top: 6px;
+  font-size: 13px;
+}
+
+.bar-chart-container {
+  padding: 10px 0;
+}
+
+.stock-alert-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stock-alert-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border: 1px solid #fee2e2;
+  background: #fffafa;
+  border-radius: 6px;
+}

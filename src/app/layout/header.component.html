@@ -1,0 +1,53 @@
+<header class="app-header">
+  <div class="header-left">
+    <div class="brand-pill">
+      <span class="status-indicator-dot"></span>
+      <span class="brand-title">ShopFloor ERP</span>
+      <span class="divider">/</span>
+      <span class="sub-title">Manufacturing Execution & QC</span>
+    </div>
+  </div>
+
+  <div class="header-right">
+    <div class="system-time">
+      <span class="clock-icon">🕒</span>
+      <span>{{ currentTime | date:'dd MMM yyyy, HH:mm:ss' }}</span>
+    </div>
+
+    <div class="shift-badge">
+      <span>Shift A (Active)</span>
+    </div>
+
+    <button class="reset-quick-btn" (click)="resetAllData()" title="Reset to initial demonstration records">
+      🔄 Reset Data
+    </button>
+
+    <div class="user-profile">
+      <div class="user-avatar">AD</div>
+      <div class="user-info">
+        <span class="user-name">Admin Supervisor</span>
+        <span class="user-role">Group 19 ERP</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- Toast Notifications -->
+<div class="toast-container">
+  @for (n of notificationService.notifications; track n.id) {
+    <div class="toast" [class]="'toast-' + n.type" (click)="notificationService.dismiss(n.id)">
+      <span class="toast-icon">
+        @switch (n.type) {
+          @case ('success') { ✓ }
+          @case ('error') { ✕ }
+          @case ('warning') { ⚠ }
+          @case ('info') { ℹ }
+        }
+      </span>
+      <div class="toast-content">
+        <span class="toast-message">{{ n.message }}</span>
+      </div>
+      <button class="toast-close" (click)="notificationService.dismiss(n.id)">×</button>
+    </div>
+  }
+</div>

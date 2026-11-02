@@ -1,0 +1,292 @@
+<div class="page-header">
+  <div>
+    <h2>Quality Inspections</h2>
+    <p>Perform quality checks, monitor checkpoints, and enforce manufacturing standards</p>
+  </div>
+  <button class="btn btn-primary" (click)="openCreateModal()">+ New Inspection</button>
+</div>
+
+<!-- KPI Cards -->
+<div class="kpi-grid">
+  <div class="kpi-card teal">
+    <div class="kpi-value">{{ totalInspections }}</div>
+    <div class="kpi-label">Total Inspections</div>
+  </div>
+  <div class="kpi-card green">
+    <div class="kpi-value">{{ passedCount }}</div>
+    <div class="kpi-label">Passed</div>
+  </div>
+  <div class="kpi-card red">
+    <div class="kpi-value">{{ failedCount }}</div>
+    <div class="kpi-label">Failed</div>
+  </div>
+  <div class="kpi-card yellow">
+    <div class="kpi-value">{{ partialCount }}</div>
+    <div class="kpi-label">Partial</div>
+  </div>
+  <div class="kpi-card blue">
+    <div class="kpi-value">{{ passRate }}%</div>
+    <div class="kpi-label">Pass Rate</div>
+  </div>
+</div>
+
+<!-- Toolbar -->
+<div class="toolbar">
+  <input
+    type="text"
+    class="search-input"
+    placeholder="Search by Product, Inspector, Batch, or ID..."
+    [value]="searchTerm"
+    (input)="onSearchChange($event)"
+  />
+  <select class="filter-select" [value]="filterResult" (change)="onFilterChange($event)">
+    <option value="">All Results</option>
+    <option value="Pass">Pass</option>
+    <option value="Fail">Fail</option>
+    <option value="Partial">Partial</option>
+  </select>
+</div>
+
+<!-- Table Card -->
+<div class="card">
+  @if (filteredInspections.length > 0) {
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Inspection ID</th>
+            <th>Production Order</th>
+            <th>Product</th>
+            <th>Batch No.</th>
+            <th>Inspector</th>
+            <th>Date</th>
+            <th>Checkpoints</th>
+            <th>Overall Result</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (insp of filteredInspections; track insp.id) {
+            <tr>
+              <td><strong>{{ insp.id }}</strong></td>
+              <td>{{ getOrderDisplay(insp.productionOrderId) }}</td>
+              <td>{{ insp.productName }}</td>
+              <td>{{ insp.batchNumber }}</td>
+              <td>{{ insp.inspectorName }}</td>
+              <td>{{ insp.inspectionDate }}</td>
+              <td>
+                <span class="checkpoint-summary">{{ getCheckpointSummary(insp) }}</span>
+              </td>
+              <td>
+                <span [class]="getResultBadgeClass(insp.overallResult)">{{ insp.overallResult }}</span>
+              </td>
+              <td>
+                <div class="btn-group">
+                  <button class="btn btn-sm btn-secondary" (click)="openViewModal(insp)">View</button>
+                  <button class="btn btn-sm btn-secondary" (click)="openEditModal(insp)">Edit</button>
+                  <button class="btn btn-sm btn-danger" (click)="confirmDelete(insp)">Delete</button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else {
+    <div class="empty-state">
+      <div class="empty-state-icon">🔍</div>
+      <h3>No Quality Inspections Found</h3>
+      <p>Record your first inspection check to monitor product quality.</p>
+      <button class="btn btn-primary" (click)="openCreateModal()">+ New Inspection</button>
+    </div>
+  }
+</div>
+
+<!-- Create / Edit Modal -->
+@if (showFormModal) {
+  <div class="modal-overlay" (click)="closeFormModal()">
+    <div class="modal modal-lg" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>{{ isEditing ? 'Edit Quality Inspection' : 'Create Quality Inspection' }}</h3>
+        <button class="modal-close" (click)="closeFormModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <form [formGroup]="inspectionForm" (ngSubmit)="saveInspection()">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Production Order <span class="required">*</span></label>
+              <select formControlName="productionOrderId" class="form-control" (change)="onOrderChange($event)">
+                <option value="">Select order...</option>
+                @for (order of productionOrders; track order.id) {
+                  <option [value]="order.id">{{ order.id }} - {{ order.productName }}</option>
+                }
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Product Name</label>
+              <input type="text" formControlName="productName" class="form-control" readonly />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Batch Number <span class="required">*</span></label>
+              <input type="text" formControlName="batchNumber" class="form-control" placeholder="e.g. BATCH-2026-001" />
+            </div>
+            <div class="form-group">
+              <label>Inspection Date <span class="required">*</span></label>
+              <input type="date" formControlName="inspectionDate" class="form-control" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Inspector Name <span class="required">*</span></label>
+              <input type="text" formControlName="inspectorName" class="form-control" placeholder="Inspector full name" />
+            </div>
+            <div class="form-group">
+              <label>Overall Result <span class="required">*</span></label>
+              <select formControlName="overallResult" class="form-control">
+                <option value="Pass">Pass</option>
+                <option value="Fail">Fail</option>
+                <option value="Partial">Partial</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Checkpoints Section -->
+          <div class="checkpoints-header">
+            <h4>Checkpoints ({{ checkpoints.length }})</h4>
+            <button type="button" class="btn btn-sm btn-primary" (click)="addCheckpoint()">+ Add Checkpoint</button>
+          </div>
+
+          <div formArrayName="checkpoints" class="checkpoints-container">
+            @for (cp of checkpoints.controls; track $index) {
+              <div [formGroupName]="$index" class="checkpoint-item">
+                <div class="form-row">
+                  <div class="form-group" style="flex: 2">
+                    <label>Checkpoint Name <span class="required">*</span></label>
+                    <input type="text" formControlName="name" class="form-control" placeholder="e.g. Surface Finish, Hardness" />
+                  </div>
+                  <div class="form-group" style="flex: 1">
+                    <label>Result <span class="required">*</span></label>
+                    <select formControlName="result" class="form-control" (change)="onCheckpointResultChange()">
+                      <option value="Pass">Pass</option>
+                      <option value="Fail">Fail</option>
+                      <option value="N/A">N/A</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="flex: 0 0 40px; display: flex; align-items: flex-end;">
+                    <button type="button" class="btn btn-danger btn-sm" (click)="removeCheckpoint($index)" title="Remove Checkpoint">✕</button>
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group" style="flex: 1">
+                    <label>Description</label>
+                    <input type="text" formControlName="description" class="form-control" placeholder="Inspection criterion details" />
+                  </div>
+                  <div class="form-group" style="flex: 1">
+                    <label>Notes</label>
+                    <input type="text" formControlName="notes" class="form-control" placeholder="Observation notes" />
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+
+          <div class="form-group" style="margin-top: 16px;">
+            <label>Inspection Notes</label>
+            <textarea formControlName="notes" class="form-control" rows="3" placeholder="Summary or recommendations..."></textarea>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{{ isEditing ? 'Update Inspection' : 'Save Inspection' }}</button>
+            <button type="button" class="btn btn-secondary" (click)="closeFormModal()">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- View Details Modal -->
+@if (showViewModal && selectedInspection) {
+  <div class="modal-overlay" (click)="closeViewModal()">
+    <div class="modal modal-lg" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Inspection Details: {{ selectedInspection.id }}</h3>
+        <button class="modal-close" (click)="closeViewModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="grid-2 mb-2">
+          <div>
+            <p><strong>Order:</strong> {{ getOrderDisplay(selectedInspection.productionOrderId) }}</p>
+            <p><strong>Product:</strong> {{ selectedInspection.productName }}</p>
+            <p><strong>Batch:</strong> {{ selectedInspection.batchNumber }}</p>
+          </div>
+          <div>
+            <p><strong>Inspector:</strong> {{ selectedInspection.inspectorName }}</p>
+            <p><strong>Date:</strong> {{ selectedInspection.inspectionDate }}</p>
+            <p><strong>Overall Result:</strong> <span [class]="getResultBadgeClass(selectedInspection.overallResult)">{{ selectedInspection.overallResult }}</span></p>
+          </div>
+        </div>
+
+        @if (selectedInspection.notes) {
+          <div class="card" style="background: #f7f8fa; margin-bottom: 16px;">
+            <strong>Notes:</strong>
+            <p style="margin-top: 4px;">{{ selectedInspection.notes }}</p>
+          </div>
+        }
+
+        <h4>Checkpoints</h4>
+        <div class="table-container mt-1">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Checkpoint</th>
+                <th>Description</th>
+                <th>Result</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (cp of selectedInspection.checkpoints; track cp.name) {
+                <tr>
+                  <td class="fw-bold">{{ cp.name }}</td>
+                  <td>{{ cp.description || '—' }}</td>
+                  <td>
+                    <span [class]="'badge badge-' + cp.result.toLowerCase()">{{ cp.result }}</span>
+                  </td>
+                  <td>{{ cp.notes || '—' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeViewModal()">Close</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Delete Confirmation Modal -->
+@if (showDeleteConfirm && deleteTarget) {
+  <div class="modal-overlay" (click)="cancelDelete()">
+    <div class="modal" (click)="$event.stopPropagation()" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3>Confirm Delete</h3>
+        <button class="modal-close" (click)="cancelDelete()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to delete inspection <strong>{{ deleteTarget.id }}</strong> for batch <strong>{{ deleteTarget.batchNumber }}</strong>?</p>
+        <p class="text-muted text-sm mt-1">This will fail if any defects are linked to this inspection.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-danger" (click)="deleteInspection()">Delete</button>
+        <button class="btn btn-secondary" (click)="cancelDelete()">Cancel</button>
+      </div>
+    </div>
+  </div>
+}

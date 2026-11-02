@@ -1,0 +1,354 @@
+<div class="page-header">
+  <div>
+    <h2>Defect Management & Analysis</h2>
+    <p>Track reported anomalies, product defects, severity distribution, and link corrective actions</p>
+  </div>
+  <button class="btn btn-primary" (click)="openCreateModal()">+ Log Defect</button>
+</div>
+
+<!-- KPI Cards -->
+<div class="kpi-grid">
+  <div class="kpi-card purple">
+    <div class="kpi-value">{{ totalDefects }}</div>
+    <div class="kpi-label">Total Defects</div>
+  </div>
+  <div class="kpi-card red">
+    <div class="kpi-value">{{ openCount }}</div>
+    <div class="kpi-label">Open</div>
+  </div>
+  <div class="kpi-card orange">
+    <div class="kpi-value">{{ investigatingCount }}</div>
+    <div class="kpi-label">Under Investigation</div>
+  </div>
+  <div class="kpi-card green">
+    <div class="kpi-value">{{ resolvedCount }}</div>
+    <div class="kpi-label">Resolved</div>
+  </div>
+  <div class="kpi-card blue">
+    <div class="kpi-value">{{ closedCount }}</div>
+    <div class="kpi-label">Closed</div>
+  </div>
+</div>
+
+<!-- Defect Breakdown Analytics Grid -->
+<div class="grid-2 mb-2">
+  <div class="card">
+    <div class="card-header">
+      <h3>Defect Types Breakdown</h3>
+    </div>
+    <div class="breakdown-list">
+      @for (item of typeBreakdown; track item.type) {
+        <div class="breakdown-row">
+          <div class="breakdown-label">
+            <span>{{ item.type }}</span>
+            <span class="text-muted text-sm">{{ item.count }} ({{ item.percentage }}%)</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-bar-fill blue" [style.width.%]="item.percentage"></div>
+          </div>
+        </div>
+      }
+      @if (typeBreakdown.length === 0) {
+        <p class="text-muted text-center py-2">No defects registered.</p>
+      }
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h3>Defects by Severity</h3>
+    </div>
+    <div class="breakdown-list">
+      @for (sev of severityBreakdown; track sev.severity) {
+        <div class="breakdown-row">
+          <div class="breakdown-label">
+            <span [class]="getSeverityBadge(sev.severity)">{{ sev.severity }}</span>
+            <span class="text-muted text-sm">{{ sev.count }} ({{ sev.percentage }}%)</span>
+          </div>
+          <div class="progress-bar">
+            <div
+              class="progress-bar-fill"
+              [class.green]="sev.severity === 'Low'"
+              [class.orange]="sev.severity === 'Medium'"
+              [class.red]="sev.severity === 'High' || sev.severity === 'Critical'"
+              [style.width.%]="sev.percentage"
+            ></div>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+</div>
+
+<!-- Toolbar -->
+<div class="toolbar">
+  <input
+    type="text"
+    class="search-input"
+    placeholder="Search defects by ID, product, type, or description..."
+    [(ngModel)]="searchTerm"
+    (input)="applyFilters()"
+  />
+  <select class="filter-select" [(ngModel)]="severityFilter" (change)="applyFilters()">
+    <option value="">All Severities</option>
+    @for (s of severities; track s) {
+      <option [value]="s">{{ s }}</option>
+    }
+  </select>
+  <select class="filter-select" [(ngModel)]="statusFilter" (change)="applyFilters()">
+    <option value="">All Statuses</option>
+    @for (st of statuses; track st) {
+      <option [value]="st">{{ st }}</option>
+    }
+  </select>
+</div>
+
+<!-- Defects Table -->
+<div class="card">
+  @if (filteredDefects.length > 0) {
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Defect ID</th>
+            <th>Production Order</th>
+            <th>Product</th>
+            <th>Type</th>
+            <th>Severity</th>
+            <th>Affected Qty</th>
+            <th>Status</th>
+            <th>Reported Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (d of filteredDefects; track d.id) {
+            <tr>
+              <td><strong>{{ d.id }}</strong></td>
+              <td>{{ d.productionOrderId }}</td>
+              <td>{{ d.productName }}</td>
+              <td>{{ d.defectType }}</td>
+              <td><span [class]="getSeverityBadge(d.severity)">{{ d.severity }}</span></td>
+              <td class="fw-bold">{{ d.affectedQuantity }}</td>
+              <td><span [class]="getStatusBadge(d.status)">{{ d.status }}</span></td>
+              <td>{{ d.reportedDate }}</td>
+              <td>
+                <div class="btn-group">
+                  <button class="btn btn-sm btn-secondary" (click)="openViewModal(d)">View</button>
+                  <button class="btn btn-sm btn-secondary" (click)="openEditModal(d)">Edit</button>
+                  <button class="btn btn-sm btn-danger" (click)="confirmDelete(d)">Delete</button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else {
+    <div class="empty-state">
+      <div class="empty-state-icon">⚠️</div>
+      <h3>No Defects Found</h3>
+      <p>Log a defect record when quality issues arise during production or inspection.</p>
+      <button class="btn btn-primary" (click)="openCreateModal()">+ Log Defect</button>
+    </div>
+  }
+</div>
+
+<!-- Create / Edit Modal -->
+@if (showModal) {
+  <div class="modal-overlay" (click)="closeModal()">
+    <div class="modal modal-lg" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>{{ isEditing ? 'Edit Defect Record' : 'Log New Defect' }}</h3>
+        <button class="modal-close" (click)="closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <form [formGroup]="defectForm" (ngSubmit)="saveDefect()">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Production Order <span class="required">*</span></label>
+              <select formControlName="productionOrderId" class="form-control" [class.invalid]="isFieldInvalid('productionOrderId')">
+                <option value="">Select order...</option>
+                @for (o of orders; track o.id) {
+                  <option [value]="o.id">{{ o.id }} - {{ o.productName }}</option>
+                }
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Linked Inspection (Optional)</label>
+              <select formControlName="inspectionId" class="form-control">
+                <option value="">None / Direct Defect</option>
+                @for (i of getFilteredInspectionsForOrder(); track i.id) {
+                  <option [value]="i.id">{{ i.id }} (Batch: {{ i.batchNumber }})</option>
+                }
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Defect Type <span class="required">*</span></label>
+              <select formControlName="defectType" class="form-control">
+                @for (t of defectTypes; track t) {
+                  <option [value]="t">{{ t }}</option>
+                }
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Severity Level <span class="required">*</span></label>
+              <select formControlName="severity" class="form-control">
+                @for (s of severities; track s) {
+                  <option [value]="s">{{ s }}</option>
+                }
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Affected Quantity <span class="required">*</span></label>
+              <input type="number" formControlName="affectedQuantity" class="form-control" min="1" [class.invalid]="isFieldInvalid('affectedQuantity')" />
+            </div>
+
+            <div class="form-group">
+              <label>Status <span class="required">*</span></label>
+              <select formControlName="status" class="form-control">
+                @for (st of statuses; track st) {
+                  <option [value]="st">{{ st }}</option>
+                }
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Reported Date <span class="required">*</span></label>
+              <input type="date" formControlName="reportedDate" class="form-control" [class.invalid]="isFieldInvalid('reportedDate')" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Defect Description <span class="required">*</span></label>
+            <textarea formControlName="description" class="form-control" rows="3" placeholder="Provide complete technical details of the defect..." [class.invalid]="isFieldInvalid('description')"></textarea>
+            @if (isFieldInvalid('description')) {
+              <div class="form-error">Detailed description is required.</div>
+            }
+          </div>
+
+          @if (defectForm.get('status')?.value === 'Resolved' || defectForm.get('status')?.value === 'Closed') {
+            <div class="form-group">
+              <label>Resolution Notes <span class="required">*</span></label>
+              <textarea formControlName="resolutionNotes" class="form-control" rows="3" placeholder="Explain how the defect was resolved..." [class.invalid]="isFieldInvalid('resolutionNotes')"></textarea>
+              @if (isFieldInvalid('resolutionNotes')) {
+                <div class="form-error">Resolution notes are required when closing or resolving.</div>
+              }
+            </div>
+          }
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{{ isEditing ? 'Update Defect' : 'Save Defect' }}</button>
+            <button type="button" class="btn btn-secondary" (click)="closeModal()">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- View Defect Modal with Traceability -->
+@if (showViewModal && selectedDefect) {
+  <div class="modal-overlay" (click)="closeViewModal()">
+    <div class="modal modal-lg" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Defect Traceability: {{ selectedDefect.id }}</h3>
+        <button class="modal-close" (click)="closeViewModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="grid-2 mb-2">
+          <div>
+            <p><strong>Product:</strong> {{ selectedDefect.productName }}</p>
+            <p><strong>Order ID:</strong> {{ selectedDefect.productionOrderId }}</p>
+            <p><strong>Type:</strong> {{ selectedDefect.defectType }}</p>
+            <p><strong>Affected Quantity:</strong> {{ selectedDefect.affectedQuantity }} units</p>
+          </div>
+          <div>
+            <p><strong>Severity:</strong> <span [class]="getSeverityBadge(selectedDefect.severity)">{{ selectedDefect.severity }}</span></p>
+            <p><strong>Status:</strong> <span [class]="getStatusBadge(selectedDefect.status)">{{ selectedDefect.status }}</span></p>
+            <p><strong>Reported Date:</strong> {{ selectedDefect.reportedDate }}</p>
+            <p><strong>Linked Inspection:</strong> {{ selectedDefect.inspectionId || 'None (Directly logged)' }}</p>
+          </div>
+        </div>
+
+        <div class="card" style="background:#f9fafb;">
+          <strong>Description:</strong>
+          <p style="margin-top: 6px;">{{ selectedDefect.description }}</p>
+        </div>
+
+        @if (selectedDefect.resolutionNotes) {
+          <div class="card" style="background:#f0fdf4; border-left: 4px solid #22c55e;">
+            <strong>Resolution Notes:</strong>
+            <p style="margin-top: 6px;">{{ selectedDefect.resolutionNotes }}</p>
+            @if (selectedDefect.resolvedDate) {
+              <div class="text-sm text-muted mt-1">Resolved on: {{ selectedDefect.resolvedDate }}</div>
+            }
+          </div>
+        }
+
+        <h4 style="margin-top: 16px;">Linked Corrective Actions ({{ linkedCorrectiveActions.length }})</h4>
+        @if (linkedCorrectiveActions.length > 0) {
+          <div class="table-container mt-1">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Action ID</th>
+                  <th>Description</th>
+                  <th>Assigned To</th>
+                  <th>Target Date</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (ca of linkedCorrectiveActions; track ca.id) {
+                  <tr>
+                    <td><strong>{{ ca.id }}</strong></td>
+                    <td>{{ ca.description }}</td>
+                    <td>{{ ca.assignedTo }}</td>
+                    <td>{{ ca.targetDate }}</td>
+                    <td><span [class]="'badge badge-' + ca.status.toLowerCase().replace(' ', '-')">{{ ca.status }}</span></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <p class="text-muted text-sm mt-1">No corrective actions have been assigned for this defect yet.</p>
+        }
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeViewModal()">Close</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Delete Confirmation -->
+@if (showDeleteConfirm && deletingDefect) {
+  <div class="modal-overlay" (click)="cancelDelete()">
+    <div class="modal" (click)="$event.stopPropagation()" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3>Confirm Defect Deletion</h3>
+        <button class="modal-close" (click)="cancelDelete()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to delete defect <strong>{{ deletingDefect.id }}</strong>?</p>
+        <p class="text-muted text-sm mt-1">This will fail if any corrective actions are linked to this defect.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-danger" (click)="deleteDefect()">Delete</button>
+        <button class="btn btn-secondary" (click)="cancelDelete()">Cancel</button>
+      </div>
+    </div>
+  </div>
+}

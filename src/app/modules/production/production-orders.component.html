@@ -1,0 +1,202 @@
+<div class="page-header">
+  <div>
+    <h2>Production Orders</h2>
+    <p>Manage and track all production orders</p>
+  </div>
+  <a routerLink="/production/orders/create" class="btn btn-primary">+ New Production Order</a>
+</div>
+
+<div class="toolbar">
+  <input type="text" class="search-input" placeholder="Search by Order ID or Product..." [(ngModel)]="searchTerm" (input)="applyFilters()">
+  <select class="filter-select" [(ngModel)]="statusFilter" (change)="applyFilters()">
+    <option value="">All Statuses</option>
+    <option value="Planned">Planned</option>
+    <option value="In Progress">In Progress</option>
+    <option value="Completed">Completed</option>
+    <option value="On Hold">On Hold</option>
+    <option value="Cancelled">Cancelled</option>
+  </select>
+  <select class="filter-select" [(ngModel)]="priorityFilter" (change)="applyFilters()">
+    <option value="">All Priorities</option>
+    <option value="Low">Low</option>
+    <option value="Medium">Medium</option>
+    <option value="High">High</option>
+    <option value="Critical">Critical</option>
+  </select>
+  <button class="btn btn-secondary btn-sm" (click)="toggleSort()">
+    Sort by Date {{ sortDirection === 'asc' ? '↑' : '↓' }}
+  </button>
+</div>
+
+<div class="card">
+  @if (pagedOrders.length > 0) {
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Order ID</th>
+            <th>Product</th>
+            <th>Quantity</th>
+            <th>Priority</th>
+            <th>Status</th>
+            <th>Planned Start</th>
+            <th>Planned End</th>
+            <th>Work Centre</th>
+            <th>Progress</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (order of pagedOrders; track order.id) {
+            <tr>
+              <td><strong>{{ order.id }}</strong></td>
+              <td>{{ order.productName }}</td>
+              <td>{{ order.producedQuantity }} / {{ order.quantity }}</td>
+              <td><span [class]="getPriorityBadgeClass(order.priority)">{{ order.priority }}</span></td>
+              <td><span [class]="getStatusBadgeClass(order.status)">{{ order.status }}</span></td>
+              <td>{{ formatDate(order.plannedStartDate) }}</td>
+              <td>{{ formatDate(order.plannedEndDate) }}</td>
+              <td>{{ getWorkCentreName(order.workCentreId) }}</td>
+              <td style="min-width:120px">
+                <div class="progress-bar">
+                  <div class="progress-bar-fill" [class]="getProgressColor(getProgressPercent(order))" [style.width.%]="getProgressPercent(order)"></div>
+                </div>
+                <span class="text-sm text-muted">{{ getProgressPercent(order) }}%</span>
+              </td>
+              <td>
+                <div class="btn-group">
+                  <button class="btn btn-sm btn-secondary" (click)="openViewModal(order)">View</button>
+                  <a [routerLink]="'/production/orders/edit/' + order.id" class="btn btn-sm btn-secondary">Edit</a>
+                  <button class="btn btn-sm btn-danger" (click)="confirmDelete(order)">Delete</button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pagination">
+      <span>Showing {{ (currentPage-1)*pageSize+1 }}–{{ currentPage*pageSize > filteredOrders.length ? filteredOrders.length : currentPage*pageSize }} of {{ filteredOrders.length }}</span>
+      <div class="pagination-buttons">
+        <button class="pagination-btn" [disabled]="currentPage===1" (click)="goToPage(currentPage-1)">‹</button>
+        @for (p of getPages(); track p) {
+          <button class="pagination-btn" [class.active]="p===currentPage" (click)="goToPage(p)">{{ p }}</button>
+        }
+        <button class="pagination-btn" [disabled]="currentPage===totalPages" (click)="goToPage(currentPage+1)">›</button>
+      </div>
+    </div>
+  } @else {
+    <div class="empty-state">
+      <div class="empty-state-icon">📋</div>
+      <h3>No Production Orders Found</h3>
+      <p>Create your first production order to get started with production planning.</p>
+      <a routerLink="/production/orders/create" class="btn btn-primary">+ Create Order</a>
+    </div>
+  }
+</div>
+
+<!-- View Order Details Modal -->
+@if (showViewModal && selectedOrder) {
+  <div class="modal-overlay" (click)="closeViewModal()">
+    <div class="modal modal-lg" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Production Order Details: {{ selectedOrder.id }}</h3>
+        <button class="modal-close" (click)="closeViewModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="grid-2 mb-2">
+          <div>
+            <p><strong>Product:</strong> {{ selectedOrder.productName }} ({{ selectedOrder.productId }})</p>
+            <p><strong>Planned Quantity:</strong> {{ selectedOrder.quantity }} units</p>
+            <p><strong>Produced:</strong> {{ selectedOrder.producedQuantity }} | <strong>Accepted:</strong> {{ selectedOrder.acceptedQuantity }}</p>
+            <p><strong>Work Centre:</strong> {{ getWorkCentreName(selectedOrder.workCentreId) }}</p>
+          </div>
+          <div>
+            <p><strong>Priority:</strong> <span [class]="getPriorityBadgeClass(selectedOrder.priority)">{{ selectedOrder.priority }}</span></p>
+            <p><strong>Status:</strong> <span [class]="getStatusBadgeClass(selectedOrder.status)">{{ selectedOrder.status }}</span></p>
+            <p><strong>Schedule:</strong> {{ formatDate(selectedOrder.plannedStartDate) }} → {{ formatDate(selectedOrder.plannedEndDate) }}</p>
+            <p>
+              <strong>Materials Status:</strong>
+              @if (selectedOrder.materialsConsumed) {
+                <span class="badge badge-completed">Consumed</span>
+              } @else {
+                <span class="badge badge-planned">Not Consumed</span>
+              }
+            </p>
+          </div>
+        </div>
+
+        <h4 style="margin-top: 14px; margin-bottom: 8px;">Bill of Materials Requirements</h4>
+        @if (selectedOrderBOMRequirements.length > 0) {
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Material</th>
+                  <th>Required</th>
+                  <th>Available</th>
+                  <th>Reserved</th>
+                  <th>Shortage</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (m of selectedOrderBOMRequirements; track m.materialId) {
+                  <tr>
+                    <td><strong>{{ m.materialName }}</strong></td>
+                    <td>{{ m.required }} {{ m.unit }}</td>
+                    <td>{{ m.available }} {{ m.unit }}</td>
+                    <td>{{ m.reserved }} {{ m.unit }}</td>
+                    <td>
+                      @if (m.shortage > 0) {
+                        <span class="text-danger fw-bold">{{ m.shortage }} {{ m.unit }}</span>
+                      } @else {
+                        <span class="text-success">✓ In Stock</span>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <p class="text-muted text-sm">No BOM recipe found for this product.</p>
+        }
+
+        <div style="margin-top: 16px; display:flex; gap: 10px;">
+          @if (!selectedOrder.materialsConsumed && selectedOrder.status !== 'Cancelled') {
+            <button class="btn btn-warning" (click)="consumeMaterials(selectedOrder)">
+              📦 Consume Materials for Production
+            </button>
+            <button class="btn btn-secondary" (click)="reserveMaterials(selectedOrder)">
+              🔒 Reserve Materials
+            </button>
+          }
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeViewModal()">Close</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Delete Confirmation Modal -->
+@if (showDeleteConfirm && orderToDelete) {
+  <div class="modal-overlay" (click)="cancelDelete()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Confirm Delete</h3>
+        <button class="modal-close" (click)="cancelDelete()">×</button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to delete order <strong>{{ orderToDelete.id }}</strong> ({{ orderToDelete.productName }})?</p>
+        <p class="text-sm text-muted mt-1">This action cannot be undone.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="cancelDelete()">Cancel</button>
+        <button class="btn btn-danger" (click)="deleteOrder()">Delete</button>
+      </div>
+    </div>
+  </div>
+}

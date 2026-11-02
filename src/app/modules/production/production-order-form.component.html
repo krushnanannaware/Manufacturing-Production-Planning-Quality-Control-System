@@ -1,0 +1,137 @@
+<div class="page-header">
+  <div>
+    <h2>{{ isEditMode ? 'Edit Production Order' : 'Create Production Order' }}</h2>
+    <p>{{ isEditMode ? 'Update order details for ' + orderId : 'Fill in the details to create a new production order' }}</p>
+  </div>
+  <a routerLink="/production/orders" class="btn btn-secondary">← Back to Orders</a>
+</div>
+
+<div class="card">
+  <form [formGroup]="orderForm" (ngSubmit)="onSubmit()">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Finished Product <span class="required">*</span></label>
+        <select formControlName="productId" class="form-control" [class.invalid]="isFieldInvalid('productId')">
+          <option value="">Select a product...</option>
+          @for (p of finishedProducts; track p.id) {
+            <option [value]="p.id">{{ p.name }} ({{ p.id }})</option>
+          }
+        </select>
+        @if (isFieldInvalid('productId')) {
+          <div class="form-error">Product selection is required.</div>
+        }
+      </div>
+      <div class="form-group">
+        <label>Quantity <span class="required">*</span></label>
+        <input type="number" formControlName="quantity" class="form-control" min="1" [class.invalid]="isFieldInvalid('quantity')">
+        @if (isFieldInvalid('quantity')) {
+          <div class="form-error">Quantity must be at least 1.</div>
+        }
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Priority <span class="required">*</span></label>
+        <select formControlName="priority" class="form-control">
+          <option value="Low">Low</option>
+          <option value="Medium">Medium</option>
+          <option value="High">High</option>
+          <option value="Critical">Critical</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Status <span class="required">*</span></label>
+        <select formControlName="status" class="form-control">
+          <option value="Planned">Planned</option>
+          <option value="In Progress">In Progress</option>
+          <option value="Completed">Completed</option>
+          <option value="On Hold">On Hold</option>
+          <option value="Cancelled">Cancelled</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Planned Start Date <span class="required">*</span></label>
+        <input type="date" formControlName="plannedStartDate" class="form-control" [class.invalid]="isFieldInvalid('plannedStartDate')">
+        @if (isFieldInvalid('plannedStartDate')) {
+          <div class="form-error">Start date is required.</div>
+        }
+      </div>
+      <div class="form-group">
+        <label>Planned End Date <span class="required">*</span></label>
+        <input type="date" formControlName="plannedEndDate" class="form-control" [class.invalid]="isFieldInvalid('plannedEndDate')">
+        @if (isFieldInvalid('plannedEndDate')) {
+          <div class="form-error">End date is required.</div>
+        }
+        @if (isDateInvalid()) {
+          <div class="form-error">End date must be after start date.</div>
+        }
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Work Centre</label>
+        <select formControlName="workCentreId" class="form-control">
+          <option value="">No work centre assigned</option>
+          @for (wc of workCentres; track wc.id) {
+            <option [value]="wc.id">{{ wc.name }} ({{ wc.isAvailable ? 'Available' : 'Unavailable' }})</option>
+          }
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea formControlName="notes" class="form-control" rows="2" placeholder="Optional notes..."></textarea>
+      </div>
+    </div>
+
+    <!-- Material Requirements -->
+    @if (materialRequirements.length > 0) {
+      <div class="card mt-2" style="background:#f7f8fa;box-shadow:none;">
+        <div class="card-header">
+          <h3>📦 Material Requirements</h3>
+          @if (hasShortage()) {
+            <span class="badge badge-critical">⚠️ Shortages Detected</span>
+          }
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Material</th>
+              <th>Required</th>
+              <th>Available</th>
+              <th>Reserved</th>
+              <th>Shortage</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (m of materialRequirements; track m.materialId) {
+              <tr [style.background]="m.shortage > 0 ? '#fff5f5' : ''">
+                <td>{{ m.materialName }}</td>
+                <td>{{ m.required }} {{ m.unit }}</td>
+                <td>{{ m.available }} {{ m.unit }}</td>
+                <td>{{ m.reserved }} {{ m.unit }}</td>
+                <td>
+                  @if (m.shortage > 0) {
+                    <span class="text-danger fw-bold">{{ m.shortage }} {{ m.unit }}</span>
+                  } @else {
+                    <span class="text-success">✓ Sufficient</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">{{ isEditMode ? 'Update Order' : 'Create Order' }}</button>
+      <a routerLink="/production/orders" class="btn btn-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+

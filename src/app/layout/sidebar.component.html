@@ -1,0 +1,46 @@
+<aside class="sidebar" [class.collapsed]="isCollapsed">
+  <div class="sidebar-header">
+    @if (!isCollapsed) {
+      <div class="logo">
+        <div class="logo-icon-box">⚙️</div>
+        <div class="logo-text">
+          <h1>MFG Pro</h1>
+          <span class="system-sub">Production & QC System</span>
+        </div>
+      </div>
+    }
+    <button class="toggle-btn" (click)="toggleSidebar()" [title]="isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'">
+      {{ isCollapsed ? '»' : '«' }}
+    </button>
+  </div>
+
+  <nav class="sidebar-nav">
+    @for (group of navGroups; track group.label) {
+      <div class="nav-group">
+        @if (!isCollapsed) {
+          <div class="nav-group-label">{{ group.label }}</div>
+        }
+        @for (item of group.items; track item.route) {
+          <a [routerLink]="item.route" routerLinkActive="active" class="nav-item" [title]="item.label">
+            <span class="nav-icon">{{ item.icon }}</span>
+            @if (!isCollapsed) {
+              <span class="nav-label">{{ item.label }}</span>
+            }
+          </a>
+        }
+      </div>
+    }
+  </nav>
+
+  <div class="sidebar-footer">
+    @if (!isCollapsed) {
+      <div class="group-info-card">
+        <div class="team-title">Group 19 ERP</div>
+        <div class="team-sub">Integrated Manufacturing</div>
+      </div>
+      <button class="reset-btn" (click)="resetData()">
+        <span>🔄 Restore Demo Data</span>
+      </button>
+    }
+  </div>
+</aside>

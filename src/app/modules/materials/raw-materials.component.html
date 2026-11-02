@@ -1,0 +1,200 @@
+<div class="page-header">
+  <div>
+    <h2>Raw Materials</h2>
+    <p>Manage raw materials, track stock levels, and supplier information</p>
+  </div>
+  <button class="btn btn-primary" (click)="openCreateModal()">+ Add Material</button>
+</div>
+
+<!-- KPI Cards -->
+<div class="kpi-grid">
+  <div class="kpi-card blue">
+    <div class="kpi-value">{{ totalMaterials }}</div>
+    <div class="kpi-label">Total Materials</div>
+  </div>
+  <div class="kpi-card" [class.red]="lowStockCount > 0" [class.green]="lowStockCount === 0">
+    <div class="kpi-value">{{ lowStockCount }}</div>
+    <div class="kpi-label">Low Stock Alerts</div>
+  </div>
+  <div class="kpi-card purple">
+    <div class="kpi-value">₹{{ totalStockValue | number:'1.0-0' }}</div>
+    <div class="kpi-label">Total Stock Value</div>
+  </div>
+</div>
+
+<!-- Search & Filter Toolbar -->
+<div class="card">
+  <div class="toolbar">
+    <input
+      class="search-input"
+      type="text"
+      placeholder="Search by name, category, or supplier..."
+      [value]="searchTerm"
+      (input)="onSearchChange($event)"
+    />
+    <select class="filter-select" [value]="categoryFilter" (change)="onCategoryFilterChange($event)">
+      <option value="">All Categories</option>
+      @for (category of categories; track category) {
+        <option [value]="category">{{ category }}</option>
+      }
+    </select>
+  </div>
+
+  <!-- Materials Table -->
+  <div class="table-container">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Category</th>
+          <th>Unit</th>
+          <th>Unit Cost</th>
+          <th>Supplier</th>
+          <th>Available Stock</th>
+          <th>Reserved</th>
+          <th>Min Stock</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (material of filteredMaterials; track material.id) {
+          <tr [class.low-stock-row]="isLowStock(material)">
+            <td class="text-muted">{{ material.id }}</td>
+            <td class="fw-bold">{{ material.name }}</td>
+            <td>{{ material.category }}</td>
+            <td>{{ material.unit }}</td>
+            <td>₹{{ material.unitCost | number:'1.2-2' }}</td>
+            <td>{{ material.supplierName || '—' }}</td>
+            <td>{{ material.availableStock | number }}</td>
+            <td>{{ material.reservedStock | number }}</td>
+            <td>{{ material.minimumStockLevel | number }}</td>
+            <td>
+              @if (isLowStock(material)) {
+                <span class="badge badge-critical">⚠ Low Stock</span>
+              } @else {
+                <span class="badge badge-completed">In Stock</span>
+              }
+            </td>
+            <td>
+              <div class="btn-group">
+                <button class="btn btn-sm btn-secondary" (click)="openEditModal(material)" title="Edit">✏️</button>
+                <button class="btn btn-sm btn-danger" (click)="confirmDelete(material)" title="Delete">🗑️</button>
+              </div>
+            </td>
+          </tr>
+        }
+        @if (filteredMaterials.length === 0) {
+          <tr>
+            <td colspan="11">
+              <div class="empty-state">
+                <div class="empty-state-icon">📦</div>
+                <h3>No materials found</h3>
+                <p>Try adjusting your search or filter criteria, or add a new material.</p>
+              </div>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Create/Edit Modal -->
+@if (showModal) {
+  <div class="modal-overlay" (click)="closeModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>{{ isEditing ? 'Edit Material' : 'Add New Material' }}</h3>
+        <button class="modal-close" (click)="closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <form [formGroup]="materialForm" (ngSubmit)="saveMaterial()">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Name <span class="required">*</span></label>
+              <input class="form-control" [class.invalid]="isFieldInvalid('name')" formControlName="name" placeholder="Material name" />
+              @if (isFieldInvalid('name')) {
+                <div class="form-error">Name is required.</div>
+              }
+            </div>
+            <div class="form-group">
+              <label>Category <span class="required">*</span></label>
+              <input class="form-control" [class.invalid]="isFieldInvalid('category')" formControlName="category" placeholder="e.g., Metals, Plastics, Electrical" />
+              @if (isFieldInvalid('category')) {
+                <div class="form-error">Category is required.</div>
+              }
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Unit <span class="required">*</span></label>
+              <input class="form-control" [class.invalid]="isFieldInvalid('unit')" formControlName="unit" placeholder="e.g., kg, metres, pieces" />
+              @if (isFieldInvalid('unit')) {
+                <div class="form-error">Unit is required.</div>
+              }
+            </div>
+            <div class="form-group">
+              <label>Unit Cost (₹) <span class="required">*</span></label>
+              <input class="form-control" [class.invalid]="isFieldInvalid('unitCost')" type="number" formControlName="unitCost" min="0" step="0.01" />
+              @if (isFieldInvalid('unitCost')) {
+                <div class="form-error">Valid unit cost is required (min 0).</div>
+              }
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Supplier Name</label>
+              <input class="form-control" formControlName="supplierName" placeholder="Supplier name" />
+            </div>
+            <div class="form-group">
+              <label>Supplier Contact</label>
+              <input class="form-control" formControlName="supplierContact" placeholder="Email or phone" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Available Stock <span class="required">*</span></label>
+              <input class="form-control" [class.invalid]="isFieldInvalid('availableStock')" type="number" formControlName="availableStock" min="0" />
+              @if (isFieldInvalid('availableStock')) {
+                <div class="form-error">Valid stock quantity is required (min 0).</div>
+              }
+            </div>
+            <div class="form-group">
+              <label>Minimum Stock Level <span class="required">*</span></label>
+              <input class="form-control" [class.invalid]="isFieldInvalid('minimumStockLevel')" type="number" formControlName="minimumStockLevel" min="0" />
+              @if (isFieldInvalid('minimumStockLevel')) {
+                <div class="form-error">Valid minimum stock level is required (min 0).</div>
+              }
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{{ isEditing ? 'Update Material' : 'Create Material' }}</button>
+            <button type="button" class="btn btn-secondary" (click)="closeModal()">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Delete Confirmation Modal -->
+@if (showDeleteConfirm) {
+  <div class="modal-overlay" (click)="cancelDelete()">
+    <div class="modal" (click)="$event.stopPropagation()" style="max-width: 420px;">
+      <div class="modal-header">
+        <h3>Confirm Delete</h3>
+        <button class="modal-close" (click)="cancelDelete()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to delete <strong>{{ deletingMaterial?.name }}</strong>?</p>
+        <p class="text-muted text-sm mt-1">This action cannot be undone. Materials used in a Bill of Materials cannot be deleted.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-danger" (click)="deleteMaterial()">Delete</button>
+        <button class="btn btn-secondary" (click)="cancelDelete()">Cancel</button>
+      </div>
+    </div>
+  </div>
+}
