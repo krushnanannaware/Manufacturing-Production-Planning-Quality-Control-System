@@ -1,14 +1,12 @@
 import { Component, OnInit, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, FormArray, Validators } from '@angular/forms';
 import { DataService } from '../../core/services/data.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { QualityInspection, InspectionCheckpoint, ProductionOrder } from '../../core/models/interfaces';
-
 @Component({
   selector: 'app-inspections',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [ReactiveFormsModule],
   templateUrl: './inspections.component.html',
   styleUrl: './inspections.component.css'
 })

@@ -1,5 +1,5 @@
 import { Component, OnInit, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { DecimalPipe, DatePipe } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormsModule } from '@angular/forms';
 import { DataService } from '../../core/services/data.service';
 import { NotificationService } from '../../core/services/notification.service';
@@ -8,9 +8,9 @@ import { BillOfMaterials, BomMaterial, RawMaterial, FinishedProduct } from '../.
 @Component({
   selector: 'app-bom',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule],
+  imports: [DecimalPipe, DatePipe, ReactiveFormsModule, FormsModule],
   templateUrl: './bom.component.html',
-  styleUrls: ['./bom.component.css']
+  styleUrl: './bom.component.css'
 })
 export class BomComponent implements OnInit {
   private dataService = inject(DataService);

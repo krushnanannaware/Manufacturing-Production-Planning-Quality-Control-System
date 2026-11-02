@@ -43,7 +43,31 @@ export class DataService {
   }
 
   generateId(prefix: string): string {
-    return `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const keyMap: Record<string, string> = {
+      'PO': this.STORAGE_KEYS.productionOrders,
+      'WC': this.STORAGE_KEYS.workCentres,
+      'SCH': this.STORAGE_KEYS.schedules,
+      'RM': this.STORAGE_KEYS.rawMaterials,
+      'BOM': this.STORAGE_KEYS.boms,
+      'IT': this.STORAGE_KEYS.inventoryTransactions,
+      'QI': this.STORAGE_KEYS.inspections,
+      'DEF': this.STORAGE_KEYS.defects,
+      'CA': this.STORAGE_KEYS.correctiveActions,
+      'DT': this.STORAGE_KEYS.downtimeEvents,
+      'FP': this.STORAGE_KEYS.finishedProducts
+    };
+    const storageKey = keyMap[prefix];
+    if (!storageKey) return `${prefix}-${Date.now()}`;
+    const items = this.getItems<{ id: string }>(storageKey);
+    let maxNum = 0;
+    for (const item of items) {
+      const match = item.id.match(/-(\d+)$/);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxNum) maxNum = num;
+      }
+    }
+    return `${prefix}-${String(maxNum + 1).padStart(3, '0')}`;
   }
 
   // ============================================================

@@ -10,7 +10,7 @@ import { ProductionOrder, WorkCentre } from '../../core/models/interfaces';
   standalone: true,
   imports: [RouterLink, FormsModule],
   templateUrl: './production-orders.component.html',
-  styleUrls: ['./production-orders.component.css']
+  styleUrl: './production-orders.component.css'
 })
 export class ProductionOrdersComponent implements OnInit {
   private dataService = inject(DataService);
