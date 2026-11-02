@@ -1,0 +1,246 @@
+<!-- Page Header -->
+<div class="page-header">
+  <div>
+    <h2>📊 Inventory Reports</h2>
+    <p>Generate, filter and export professional PDF reports for all inventory operations</p>
+  </div>
+  <div class="btn-group">
+    <button class="btn btn-primary" (click)="downloadCurrentReport()">
+      📄 Download Current Report
+    </button>
+    <button class="btn btn-success" (click)="downloadAllReports()">
+      📥 Download All Reports
+    </button>
+  </div>
+</div>
+
+<!-- Report Type Selector -->
+<div class="report-selector-grid">
+  @for (def of reportDefinitions; track def.type) {
+    <button
+      class="report-tab"
+      [class.active]="activeReport === def.type"
+      (click)="selectReport(def.type)"
+    >
+      <span class="report-tab-icon">{{ def.icon }}</span>
+      <span class="report-tab-label">{{ def.label }}</span>
+    </button>
+  }
+</div>
+
+<!-- Summary KPI Cards -->
+<div class="kpi-grid" style="margin-top:0">
+  <div class="kpi-card green">
+    <div class="kpi-value">{{ summary.totalReceipt | number:'1.0-2' }}</div>
+    <div class="kpi-label">Total Received</div>
+  </div>
+  <div class="kpi-card red">
+    <div class="kpi-value">{{ summary.totalConsumption | number:'1.0-2' }}</div>
+    <div class="kpi-label">Total Consumed</div>
+  </div>
+  <div class="kpi-card blue">
+    <div class="kpi-value">{{ summary.totalReservation | number:'1.0-2' }}</div>
+    <div class="kpi-label">Total Reserved</div>
+  </div>
+  <div class="kpi-card" [class.orange]="summary.totalAdjustment !== 0" [class.teal]="summary.totalAdjustment === 0">
+    <div class="kpi-value">{{ summary.totalAdjustment >= 0 ? '+' : '' }}{{ summary.totalAdjustment | number:'1.0-2' }}</div>
+    <div class="kpi-label">Net Adjustments</div>
+  </div>
+  <div class="kpi-card" [class.green]="summary.netChange >= 0" [class.red]="summary.netChange < 0">
+    <div class="kpi-value">{{ summary.netChange >= 0 ? '+' : '' }}{{ summary.netChange | number:'1.0-2' }}</div>
+    <div class="kpi-label">Net Stock Change</div>
+  </div>
+</div>
+
+<!-- Active Report Card -->
+<div class="card report-card">
+  <!-- Report Header -->
+  <div class="card-header report-card-header">
+    <div class="report-title-block">
+      <span class="report-icon">{{ getActiveReportDef().icon }}</span>
+      <div>
+        <h3>{{ getActiveReportDef().label }}</h3>
+        <p class="text-sm text-muted">{{ getActiveReportDef().desc }}</p>
+      </div>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-primary btn-sm" (click)="downloadCurrentReport()">
+        📄 Export PDF
+      </button>
+    </div>
+  </div>
+
+  <!-- Filters Toolbar -->
+  <div class="filters-toolbar">
+    <div class="filter-group">
+      <label class="filter-label">Date From</label>
+      <input
+        type="date"
+        class="form-control filter-input"
+        [(ngModel)]="filterDateFrom"
+        (change)="generateReport()"
+      />
+    </div>
+    <div class="filter-group">
+      <label class="filter-label">Date To</label>
+      <input
+        type="date"
+        class="form-control filter-input"
+        [(ngModel)]="filterDateTo"
+        (change)="generateReport()"
+      />
+    </div>
+    <div class="filter-group">
+      <label class="filter-label">Material</label>
+      <select class="form-control filter-select" [(ngModel)]="filterMaterial" (change)="generateReport()">
+        <option value="">All Materials</option>
+        @for (m of allMaterials; track m.id) {
+          <option [value]="m.id">{{ m.name }}</option>
+        }
+      </select>
+    </div>
+    @if (isAllTransactions()) {
+      <div class="filter-group">
+        <label class="filter-label">Type</label>
+        <select class="form-control filter-select" [(ngModel)]="filterType" (change)="generateReport()">
+          <option value="">All Types</option>
+          <option value="Receipt">Receipt</option>
+          <option value="Consumption">Consumption</option>
+          <option value="Reservation">Reservation</option>
+          <option value="Adjustment">Adjustment</option>
+        </select>
+      </div>
+    }
+    <button class="btn btn-secondary btn-sm" (click)="clearFilters()" style="margin-top:18px">
+      ✕ Clear
+    </button>
+  </div>
+
+  <!-- CURRENT STOCK LEVELS TABLE -->
+  @if (isCurrentStock()) {
+    @if (stockRows.length > 0) {
+      <div class="stock-summary-bar">
+        <span>📦 <strong>{{ stockRows.length }}</strong> materials</span>
+        <span>💰 Total Value: <strong>₹{{ totalStockValue | number:'1.2-2' }}</strong></span>
+        @if (lowStockCount > 0) {
+          <span class="low-stock-badge">⚠️ <strong>{{ lowStockCount }}</strong> Low Stock</span>
+        }
+      </div>
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Material ID</th>
+              <th>Material Name</th>
+              <th>Category</th>
+              <th>Available Stock</th>
+              <th>Reserved</th>
+              <th>Net Available</th>
+              <th>Min Level</th>
+              <th>Unit Cost</th>
+              <th>Stock Value</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (m of stockRows; track m.id) {
+              <tr [class.low-stock-row]="m.availableStock <= m.minimumStockLevel">
+                <td><strong>{{ m.id }}</strong></td>
+                <td>{{ m.name }}</td>
+                <td>{{ m.category }}</td>
+                <td class="fw-bold">{{ m.availableStock }} {{ m.unit }}</td>
+                <td class="text-muted">{{ m.reservedStock }} {{ m.unit }}</td>
+                <td class="fw-bold" [class.text-danger]="(m.availableStock - m.reservedStock) < 0">
+                  {{ m.availableStock - m.reservedStock }} {{ m.unit }}
+                </td>
+                <td>{{ m.minimumStockLevel }} {{ m.unit }}</td>
+                <td>₹{{ m.unitCost | number:'1.2-2' }}</td>
+                <td class="fw-bold">₹{{ (m.availableStock * m.unitCost) | number:'1.2-2' }}</td>
+                <td>
+                  @if (m.availableStock <= m.minimumStockLevel) {
+                    <span class="badge badge-critical">Low Stock</span>
+                  } @else {
+                    <span class="badge badge-completed">Healthy</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+          <tfoot>
+            <tr class="table-total-row">
+              <td colspan="8" class="text-right fw-bold">Total Inventory Value:</td>
+              <td colspan="2" class="fw-bold">₹{{ totalStockValue | number:'1.2-2' }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    } @else {
+      <div class="empty-state">
+        <div class="empty-state-icon">📦</div>
+        <h3>No Materials Found</h3>
+        <p>Add materials from the Raw Materials module to see stock levels here.</p>
+      </div>
+    }
+  }
+
+  <!-- TRANSACTION REPORT TABLE -->
+  @if (!isCurrentStock()) {
+    @if (reportRows.length > 0) {
+      <div class="stock-summary-bar">
+        <span>📋 <strong>{{ reportRows.length }}</strong> record(s)</span>
+      </div>
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Txn ID</th>
+              <th>Date</th>
+              <th>Type</th>
+              <th>Material ID</th>
+              <th>Material Name</th>
+              <th>Quantity</th>
+              <th>Prod. Order</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (txn of reportRows; track txn.id) {
+              <tr>
+                <td><strong>{{ txn.id }}</strong></td>
+                <td>{{ txn.date }}</td>
+                <td><span [class]="txnBadgeClass(txn.transactionType)">{{ txn.transactionType }}</span></td>
+                <td>{{ txn.materialId }}</td>
+                <td>{{ txn.materialName }}</td>
+                <td class="fw-bold"
+                    [class.text-success]="txn.quantity > 0"
+                    [class.text-danger]="txn.quantity < 0">
+                  {{ txn.quantity > 0 ? '+' : '' }}{{ txn.quantity }}
+                </td>
+                <td>{{ txn.productionOrderId || '—' }}</td>
+                <td class="text-muted notes-cell">{{ txn.notes || '—' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <div class="empty-state">
+        <div class="empty-state-icon">{{ getActiveReportDef().icon }}</div>
+        <h3>No Records Found</h3>
+        <p>There are no {{ getActiveReportDef().label | lowercase }} records matching the current filters.</p>
+      </div>
+    }
+  }
+</div>
+
+<!-- Download All Reports Banner -->
+<div class="download-all-banner">
+  <div class="banner-text">
+    <strong>📥 Consolidated Inventory Report</strong>
+    <span>All 6 reports in a single printable PDF — receipts, consumptions, reservations, adjustments, stock levels and transaction history</span>
+  </div>
+  <button class="btn btn-success" (click)="downloadAllReports()">
+    Download All Reports as PDF
+  </button>
+</div>
+

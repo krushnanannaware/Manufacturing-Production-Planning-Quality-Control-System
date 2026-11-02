@@ -17,6 +17,7 @@ export const routes: Routes = [
   { path: 'materials/raw-materials', loadComponent: () => import('./modules/materials/raw-materials.component').then(m => m.RawMaterialsComponent) },
   { path: 'materials/bom', loadComponent: () => import('./modules/materials/bom.component').then(m => m.BomComponent) },
   { path: 'materials/inventory', loadComponent: () => import('./modules/materials/inventory.component').then(m => m.InventoryComponent) },
+  { path: 'materials/inventory-reports', loadComponent: () => import('./modules/materials/inventory-reports.component').then(m => m.InventoryReportsComponent) },
 
   // Quality Module (Member 3)
   { path: 'quality/inspections', loadComponent: () => import('./modules/quality/inspections.component').then(m => m.InspectionsComponent) },

@@ -1,5 +1,6 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule, DecimalPipe } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormsModule } from '@angular/forms';
 import { DataService } from '../../core/services/data.service';
 import { NotificationService } from '../../core/services/notification.service';
@@ -10,7 +11,7 @@ import {
 @Component({
   selector: 'app-inventory',
   standalone: true,
-  imports: [CommonModule, DecimalPipe, ReactiveFormsModule, FormsModule],
+  imports: [CommonModule, DecimalPipe, RouterLink, ReactiveFormsModule, FormsModule],
   templateUrl: './inventory.component.html',
   styleUrl: './inventory.component.css'
 })

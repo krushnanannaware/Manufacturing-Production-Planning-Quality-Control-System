@@ -36,7 +36,8 @@ export class SidebarComponent {
       items: [
         { label: 'Raw Materials', route: '/materials/raw-materials', icon: '🧱' },
         { label: 'Bill of Materials', route: '/materials/bom', icon: '📄' },
-        { label: 'Inventory', route: '/materials/inventory', icon: '📊' }
+        { label: 'Inventory', route: '/materials/inventory', icon: '📊' },
+        { label: 'Inventory Reports', route: '/materials/inventory-reports', icon: '📑' }
       ]
     },
     {
